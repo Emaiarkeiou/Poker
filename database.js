@@ -94,14 +94,30 @@ const createTables = async () => {
             FOREIGN KEY (utente1) REFERENCES Utente(username) ON DELETE CASCADE,
             FOREIGN KEY (utente1) REFERENCES Utente(username) ON DELETE CASCADE
         )
-    `);
-
-    
+    `); 
 }
 
+const login = async(username, password) => {
+    // check nel database dell'utente
+    // ritorna 0 o 1
+    return (await executeQuery(`
+    SELECT * FROM Utente
+    WHERE Utente.username = '${username}'
+      AND Utente.password = '${password}'
+    `)).length;
+};
+
+const signup = async(username, password) => {
+    return (await executeQuery(`
+    INSERT INTO Utente (username, password)
+    VALUES ('${username}','${password}')
+    `));
+};
 
 module.exports = {
     executeQuery: executeQuery,
-    createTables: createTables
+    createTables: createTables,
+    login: login,
+    signup: signup,
   };
   
