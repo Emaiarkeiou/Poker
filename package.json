@@ -1,7 +1,27 @@
 {
-  "dependencies": {
-    "express": "^4.19.2",
-    "mysql2": "^3.9.7",
-    "socket.io": "^4.7.5"
-  }
+  "name": "poker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Emaiarkeiou/Poker.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Emaiarkeiou/Poker/issues"
+  },
+  "homepage": "https://github.com/Emaiarkeiou/Poker#readme",
+  
+    "dependencies": {
+      "express": "^4.19.2",
+      "mysql2": "^3.9.7",
+      "socket.io": "^4.7.5"
+    }
+  
+  
 }
