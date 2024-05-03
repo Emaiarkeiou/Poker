@@ -16,12 +16,9 @@
     "url": "https://github.com/Emaiarkeiou/Poker/issues"
   },
   "homepage": "https://github.com/Emaiarkeiou/Poker#readme",
-  
-    "dependencies": {
-      "express": "^4.19.2",
-      "mysql2": "^3.9.7",
-      "socket.io": "^4.7.5"
-    }
-  
-  
+  "dependencies": {
+    "express": "^4.19.2",
+    "mysql2": "^3.9.7",
+    "socket.io": "^4.7.5"
+  }
 }

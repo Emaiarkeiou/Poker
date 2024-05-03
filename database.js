@@ -14,8 +14,6 @@ const executeQuery = (sql) => {
     });
   };
 
-
-
 const createTables = async () => {
     // creazione tabelle se non esistono
 
@@ -83,8 +81,8 @@ const createTables = async () => {
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Amicizia (
             utente1 VARCHAR(255) NOT NULL, 
-            utente2 INT NOT NULL,
-            stato VARCHAR(255) NOT NULL,
+            utente2 VARCHAR(255) NOT NULL,
+            accettata BOOLEAN,
             PRIMARY KEY (utente1, utente2),
             FOREIGN KEY (utente1) REFERENCES Utente(username) ON DELETE CASCADE,
             FOREIGN KEY (utente1) REFERENCES Utente(username) ON DELETE CASCADE
@@ -94,10 +92,12 @@ const createTables = async () => {
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Invito (
             utente1 VARCHAR(255) NOT NULL, 
-            utente2 INT NOT NULL,
-            PRIMARY KEY (utente1, utente2),
+            utente2 VARCHAR(255) NOT NULL,
+            tavolo INT NOT NULL,
+            PRIMARY KEY (utente1, utente2, tavolo),
             FOREIGN KEY (utente1) REFERENCES Utente(username) ON DELETE CASCADE,
-            FOREIGN KEY (utente1) REFERENCES Utente(username) ON DELETE CASCADE
+            FOREIGN KEY (utente1) REFERENCES Utente(username) ON DELETE CASCADE,
+            FOREIGN KEY (tavolo) REFERENCES Tavolo(id) ON DELETE CASCADE
         )
     `); 
 }
@@ -112,8 +112,8 @@ const login = async(username, password) => {
     // ritorna 0 o 1
     return await executeQuery(`
         SELECT * FROM Utente
-        WHERE Utente.username = '${username}'
-        AND Utente.password = '${password}'
+        WHERE username = '${username}'
+        AND password = '${password}'
     `).length;
 };
 
@@ -128,14 +128,14 @@ const bind_socket = async(socket,username) => {
 const get_username = async(socket) => {
     return await executeQuery(`
         SELECT username FROM Utente
-        WHERE Utente.socket = '${socket}'
+        WHERE socket = '${socket}'
     `);
 }
 
 const get_socket = async(username) => {
     return await executeQuery(`
         SELECT socket FROM Utente
-        WHERE Utente.username = '${username}'
+        WHERE username = '${username}'
     `);
 }
 
@@ -144,7 +144,7 @@ const check_username = async(username) => {
     // ritorna 0 o 1
     return await executeQuery(`
         SELECT * FROM Utente
-        WHERE Utente.username = '${username}'
+        WHERE username = '${username}'
     `).length;
 };
 
@@ -174,7 +174,7 @@ const unready = async(username) => {
 
 const check_ready = async(tavolo) => {
     return await executeQuery(`
-        SELECT stato FROM Utente
+        SELECT pronto FROM Utente
         WHERE tavolo = ${tavolo}
     `);
 };
@@ -201,14 +201,14 @@ const create_table = async(username) => {
 const get_table = async(username) => {
     return await executeQuery(`
         SELECT tavolo FROM Utente
-        WHERE Utente.username = '${username}'
+        WHERE username = '${username}'
     `);
 }
 
-const create_invite = async(username1,username2) => {
+const create_invite = async(username1,username2,tavolo) => {
     await executeQuery(`
-        INSERT INTO Invito (utente1,utente2)
-        VALUES ('${username1}','${username2}')
+        INSERT INTO Invito (utente1,utente2,tavolo)
+        VALUES ('${username1}','${username2}',${tavolo})
     `);
 };
 
@@ -220,17 +220,33 @@ const delete_invite = async(username1,username2) => {
     `);
 };
 
+const delete_invites_table = async(tavolo) => {
+    await executeQuery(`
+        DELETE FROM Invito
+        WHERE tavolo = ${tavolo}
+    `);
+};
+
+const get_invites = async(username) => {
+    return await executeQuery(`
+        SELECT * FROM Invito
+        WHERE accettata = False
+            AND (utente1 = '${username}' OR utente2 = '${username}')
+    `);
+}
+
+
 const create_request = async(username1,username2) => {
     await executeQuery(`
-        INSERT INTO Amicizia (utente1,utente2,stato)
-        VALUES ('${username1}','${username2}','In Sospeso')
+        INSERT INTO Amicizia (utente1, utente2, accettata)
+        VALUES ('${username1}','${username2}', False)
     `);
 };
 
 const accept_request = async(username1,username2) => {
     await executeQuery(`
         UPDATE Amicizia
-        SET stato = 'Accettata'
+        SET accettata = True
         WHERE utente1 = '${username1}'
             AND utente2 = '${username2}'
     `);
@@ -244,6 +260,21 @@ const delete_friendship = async(username1,username2) => {
     `);
 };
 
+const get_requests = async(username) => {
+    return await executeQuery(`
+        SELECT * FROM Amicizia
+        WHERE accettata = False
+            AND (utente1 = '${username}' OR utente2 = '${username}')
+    `);
+};
+
+const get_friendships = async(username) => {
+    return await executeQuery(`
+        SELECT * FROM Amicizia
+        WHERE accettata = True
+            AND (utente1 = '${username}' OR utente2 = '${username}')
+    `);//includere stato utente attraverso socket
+};
 
 module.exports = {
     executeQuery: executeQuery,
@@ -256,6 +287,7 @@ module.exports = {
     check_username: check_username, //might not need it
     get_username: get_username,
     get_socket: get_socket,
+    //get_user: get_user,
     ready: ready,
     unready: unready,
     check_ready: check_ready,
@@ -266,10 +298,14 @@ module.exports = {
 
     create_invite: create_invite,
     delete_invite: delete_invite,
+    delete_invites_table: delete_invites_table,
+    get_invites: get_invites,
 
     create_request: create_request,
     accept_request: accept_request,
     delete_request: delete_friendship,
     delete_friendship: delete_friendship,
+    get_requests: get_requests,
+    get_friendships: get_friendships,
   };
   
