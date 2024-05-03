@@ -58,10 +58,10 @@ app.post("/create_table", async(req, res) => {
         req.headers.password,
     );
     if (result) {
-        let tavolo = await db.create_table(req.headers.username);
+        const tavolo = await db.create_table(req.headers.username);
         await join_table(req.headers.username, tavolo);
 
-        let id = (await db.get_socket(req.headers.username))[0];
+        const id = (await db.get_socket(req.headers.username))[0];
         io.in(id).socketsJoin(tavolo);
 
         res.json({ result: "ok" });
@@ -71,6 +71,26 @@ app.post("/create_table", async(req, res) => {
         res.json({ result: "Unauthorized" });
     };
 });
+
+const logout = async (id) => {
+    const username = (await db.get_username(id))[0];
+    const friends_list = await get_friendships(username);
+    const invited_list = await get_invites(username);
+
+    await db.delete_instance(username);
+
+    friends_list.forEach((friend) => {
+        if (friend.socket) {
+            io.to(friend.socket).emit("friends",get_friendships(friend.username));
+        };
+    });
+        
+    invited_list.forEach((invited) => {
+        if (invited.socket) {
+            io.to(invited.socket).emit("invite",get_invites(invited.username));
+        };
+    });
+}
 
 
 
@@ -95,18 +115,15 @@ const get_friendships = async(username) => {
 
 const start_game = async(tavolo) => {
     io.to(tavolo).emit("start game",get_players(tavolo));
+    //create mano
     //Mano,fiches,Puntata,CartE
 };
 
 const end_game = async(tavolo) => {
     io.to(tavolo).emit("end game","end game");
+    //delete mano
     //Mano,fiches,Puntata,CartE
 };
-
-
-
-
-
 
 
 
@@ -117,20 +134,21 @@ const end_game = async(tavolo) => {
 const io = new Server(server);
 
 io.of("/").adapter.on("join-room", async (room, id) => {
-    if (await db.get_table_size(room) >= 10) {
-        await db.delete_invites_table(room)
-    };
-    io.to(room).emit("lobby",get_players(room));
+    io.to(room).emit("table",get_players(room));
     //ordine players
+    // unready everyone
+    // delete all invites
 });
 
-io.of("/").adapter.on("leave-room", (room, id) => {
-    io.to(room).emit("lobby",get_players(room));
+io.of("/").adapter.on("leave-room", async (room, id) => {
+    io.to(room).emit("table",get_players(room));
+    if ((await io.in(room).fetchSockets().size) === 0) {
+        await db.delete_table(room);
+    };
 });
 
 io.on("connection", (socket) => {
     console.log("socket connected: " + socket.id);
-
 
     /* STRUTTURA */
     /* 1: get dei dati (usernames e sockets) */
@@ -141,7 +159,7 @@ io.on("connection", (socket) => {
         const username = (await db.get_username(socket.id))[0];
         const friends_list = await get_friendships(username);
 
-        await db.bind_socket(socket.id,username);
+        await db.create_instance(socket.id,username);
 
         friends_list.forEach((friend) => {
             if (friend.socket) {
@@ -151,44 +169,21 @@ io.on("connection", (socket) => {
     });
 
     socket.on("logout", async () => {
-        const username = (await db.get_username(socket.id))[0];
-        const friends_list = await get_friendships(username);
-        const invited_list = await get_invites(username);
-
-        await db.bind_socket(null,(await db.get_username(socket.id))[0]);
-        
-        friends_list.forEach((friend) => {
-            if (friend.socket) {
-                io.to(friend.socket).emit("friends",get_friendships(friend.username));
-            };
-        });
-
-        invited_list.forEach((invited) => {
-            if (invited.socket) {
-                io.to(invited.socket).emit("invite",get_invites(invited.username));
-            };
-        });
+        logout(socket.id);        
     });
 
     /* INVITI AL TAVOLO */
 
     socket.on("invite", async (m) => {
-        //check numero players nel tavolo, in caso, errore
         const username1 = (await db.get_username(socket.id))[0];
         const tavolo = await db.get_table(username1);
-        if (await db.get_table_size(tavolo) < 10) {
-            const username2 = m.username;
-            const socket2 = await (db.get_socket(username2))[0];
+        const username2 = m.username;
+        const socket2 = await (db.get_socket(username2))[0];
 
-            await db.create_invite(username1,username2);
+        await db.create_invite(username1,username2,tavolo);
             
-            io.to(socket.id).emit("invite",get_invites(username1));
-            io.to(socket2).emit("invite",get_invites(username2));
-
-        } else {
-            socket.emit("error","Table Full");
-        }
-    
+        io.to(socket.id).emit("invite",get_invites(username1));
+        io.to(socket2).emit("invite",get_invites(username2));
     });
 
     socket.on("accept_invite", async (m) => {
@@ -199,7 +194,7 @@ io.on("connection", (socket) => {
     
         await db.delete_invite(username1,username2);
         await join_table(username2, tavolo);
-        await io.in(socket.id).socketsJoin(tavolo);
+        io.in(socket.id).socketsJoin(tavolo);
 
         io.to(socket1).emit("invite",get_invites(username1));
         io.to(socket.id).emit("invite",get_invites(username2));
@@ -221,33 +216,28 @@ io.on("connection", (socket) => {
     /* RICHIESTE DI AMICIZIA */
 
     socket.on("request", async (m) => {
-         //questo quando cerca un username, mettere try catch
+        //questo quando cerca un username, mettere try catch
         const username1 = (await db.get_username(socket.id))[0];
-        if (await db.get_friends_number(username1) < 100) {
-            const username2 = m.username;
-            const socket2 = (await db.get_socket(username2))[0];
+        const username2 = m.username;
+        const socket2 = (await db.get_socket(username2))[0];
 
-            await db.create_request(username1,username2);
+        await db.create_request(username1,username2);
             
-            io.to(socket.id).emit("request",get_requests(username1));
-            io.to(socket2).emit("request",get_requests(username2));
-
-        } else {
-            socket.emit("error","Friends List Full");
-        };
+        io.to(socket.id).emit("request",get_requests(username1));
+        io.to(socket2).emit("request",get_requests(username2));
     });
 
     socket.on("accept_request", async (m) => {
         const username1 = m.username;
         const username2 = (await db.get_username(socket.id))[0];
         const socket1 = (await db.get_socket(username1))[0];
-        //check numero di amici <100
+        
         await db.accept_request(username1,username2);
 
-        io.to(socket1).emit("invite",get_requests(username1));
-        io.to(socket.id).emit("invite",get_requests(username2));
-        io.to(socket1).emit("invite",get_friendships(username1));
-        io.to(socket.id).emit("invite",get_friendships(username2));
+        io.to(socket1).emit("request",get_requests(username1));
+        io.to(socket.id).emit("request",get_requests(username2));
+        io.to(socket1).emit("friends",get_friendships(username1));
+        io.to(socket.id).emit("friends",get_friendships(username2));
     });
 
     socket.on("reject_request", async (m) => {
@@ -257,8 +247,8 @@ io.on("connection", (socket) => {
 
         await db.delete_request(username1,username2);
 
-        io.to(socket1).emit("invite",get_requests(username1));
-        io.to(socket.id).emit("invite",get_requests(username2));
+        io.to(socket1).emit("request",get_requests(username1));
+        io.to(socket.id).emit("request",get_requests(username2));
     });
 
     socket.on("remove_friendship", async (m) => {
@@ -268,8 +258,8 @@ io.on("connection", (socket) => {
 
         await db.delete_friendship(usernamex,usernamey);
 
-        io.to(socketx).emit("invite",get_friendships(usernamex));
-        io.to(socket.id).emit("invite",get_friendships(usernamey));
+        io.to(socketx).emit("friends",get_friendships(usernamex));
+        io.to(socket.id).emit("friends",get_friendships(usernamey));
     });
 
 
@@ -282,7 +272,7 @@ io.on("connection", (socket) => {
         await db.ready(username);
         const all_ready = await db.check_ready(socket.rooms[0]);
 
-        io.to(socket.rooms[0]).emit("lobby",get_players(socket.rooms[0]));
+        io.to(socket.rooms[0]).emit("table",get_players(socket.rooms[0]));
         if (all_ready.every(Boolean)) {
             start_game(socket.rooms[0])
         };
@@ -309,15 +299,38 @@ io.on("connection", (socket) => {
     // moves => logica di gioco server
     // quit, leave
 
+    socket.on("quit_table", async () => {
+        const username = (await db.get_username(socket.id))[0];
+        const tavolo = await db.get_table(username)
+
+        await db.unready(username);
+        await db.leave_table(username);
+        io.in(socket.id).socketsLeave(tavolo);
+        //emit players
+    });
+
+    socket.on("quit_game_and_table", async (m) => {
+        const username = (await db.get_username(socket.id))[0];
+        const tavolo = await db.get_table(username)
+
+        await db.unready(username);
+        await db.leave_table(username);
+        io.in(socket.id).socketsLeave(tavolo);
+        //delete_player
+        //emit players
+
+    });
+
     socket.on("disconnect", async () => {
         const username = (await db.get_username(socket.id))[0];
-        // eliminare tutto
-        // abbandonare tutto
-        // mandare a tutti gli amici l'aggiornamento della lista amici e inviti
-        // 
-        if (username) {
-            await db.bind_socket(null,m.username);
-        }
+        const tavolo = await db.get_table(username)
+
+        await db.unready(username);
+        await db.leave_table(username);
+        io.in(socket.id).socketsLeave(tavolo);
+        //delete_player if exists
+
+        await logout(socket.id);
     });
 });
 
