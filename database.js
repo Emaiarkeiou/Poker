@@ -39,6 +39,7 @@ const createTables = async () => {
         CREATE TABLE IF NOT EXISTS Utente (
             username VARCHAR(255) NOT NULL PRIMARY KEY, 
             password VARCHAR(255) NOT NULL,
+            pronto BOOLEAN,
             socket VARCHAR(255),
             tavolo INT,
             fiches INT,
@@ -145,7 +146,7 @@ const check_username = async(username) => {
         SELECT * FROM Utente
         WHERE Utente.username = '${username}'
     `).length;
-}
+};
 
 const signup = async(username, password) => {
     await executeQuery(`
@@ -153,6 +154,27 @@ const signup = async(username, password) => {
         VALUES ('${username}','${password}')
     `);
 };
+
+
+const ready = async(username) => {
+    await executeQuery(`
+        UPDATE Utente
+        SET pronto = True
+        WHERE username = '${username}'
+    `);
+};
+
+const unready = async(username) => {
+    await executeQuery(`
+        UPDATE Utente
+        SET pronto = False
+        WHERE username = '${username}'
+    `);
+};
+
+
+
+
 
 const join_table = async(username, tavolo) => {
     await executeQuery(`
@@ -228,6 +250,8 @@ module.exports = {
     check_username: check_username, //might not need it
     get_username: get_username,
     get_socket: get_socket,
+    ready: ready,
+    unready: unready,
 
     create_table: create_table,
     join_table: join_table,

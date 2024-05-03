@@ -78,6 +78,8 @@ app.post("/create_table", async(req, res) => {
     };
 });
 
+
+
 const get_players = async(tavolo) => {
     return {};
 };
@@ -95,6 +97,10 @@ const get_friends = async(username) => {
 };
 
 
+const start_game = async(tavolo) => {
+    io.to(tavolo).emit("game",get_players(tavolo));
+    //Mano,fiches,Puntata,CartE
+};
 
 
 
@@ -111,11 +117,11 @@ const get_friends = async(username) => {
 const io = new Server(server);
 
 io.of("/").adapter.on("join-room", (room, id) => {
-    io.to(room).emit(get_players(room));
+    io.to(room).emit("lobby",get_players(room));
 });
 
 io.of("/").adapter.on("leave-room", (room, id) => {
-    io.to(room).emit(get_players(room));
+    io.to(room).emit("lobby",get_players(room));
 });
 
 io.on("connection", (socket) => {
@@ -151,7 +157,7 @@ io.on("connection", (socket) => {
         const tavolo = await db.get_table(username1);
         await join_table(username2, tavolo);
         io.in(socket.id).socketsJoin(tavolo);
-
+        //io.to(tavolo).emit(get_players(tavolo));
         io.to(socket1).emit("invite",get_invites(username1));
         io.to(socket.id).emit("invite",get_invites(username2));
     });
@@ -218,7 +224,37 @@ io.on("connection", (socket) => {
         io.to(socket.id).emit("invite",get_friends(usernamey));
     });
 
+
+
+    /* GIOCO */
+
+    socket.on("ready", async () => {
+        const username = (await db.get_username(socket.id))[0];
+
+        await db.ready(username);
+        const all_ready = await db.check_ready(socket.rooms[0]);
+
+        io.to(socket.rooms[0]).emit("lobby",get_players(socket.rooms[0]));
+        if (all_ready) {
+            start_game(socket.rooms[0])
+        };
+    });
+
+    socket.on("unready", async () => {
+        const username = (await db.get_username(socket.id))[0];
+
+        await db.unready(username);
+
+        io.to(socket.rooms[0]).emit("lobby",get_players(socket.rooms[0]));
+    });
+
+    socket.on("move", async () => {
+        //io.to(tavolo).emit("game","end game");
+    });
+
+
     // ready => starta game => Mano,fiches,Puntata,CartE => fine game => ready ...
+    // unready
     // moves => logica di gioco server
     // quit, leave
 
