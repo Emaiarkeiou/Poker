@@ -118,6 +118,7 @@ const io = new Server(server);
 
 io.of("/").adapter.on("join-room", (room, id) => {
     io.to(room).emit("lobby",get_players(room));
+    //ordine players
 });
 
 io.of("/").adapter.on("leave-room", (room, id) => {
@@ -235,7 +236,7 @@ io.on("connection", (socket) => {
         const all_ready = await db.check_ready(socket.rooms[0]);
 
         io.to(socket.rooms[0]).emit("lobby",get_players(socket.rooms[0]));
-        if (all_ready) {
+        if (all_ready.every(Boolean)) {
             start_game(socket.rooms[0])
         };
     });
@@ -249,6 +250,9 @@ io.on("connection", (socket) => {
     });
 
     socket.on("move", async () => {
+        //io.to(tavolo).emit("move",);
+        //io.to(socket).emit("turn",);
+
         //io.to(tavolo).emit("game","end game");
     });
 

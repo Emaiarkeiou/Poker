@@ -172,6 +172,12 @@ const unready = async(username) => {
     `);
 };
 
+const check_ready = async(tavolo) => {
+    return await executeQuery(`
+        SELECT stato FROM Utente
+        WHERE tavolo = ${tavolo}
+    `);
+};
 
 
 
@@ -252,6 +258,7 @@ module.exports = {
     get_socket: get_socket,
     ready: ready,
     unready: unready,
+    check_ready: check_ready,
 
     create_table: create_table,
     join_table: join_table,
