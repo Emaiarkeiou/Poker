@@ -20,16 +20,19 @@ const createTables = async () => {
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Tavolo ( 
             id INT PRIMARY KEY AUTO_INCREMENT,
-            stato VARCHAR(255) NOT NULL
+            stato VARCHAR(255) NOT NULL,
+            n_mano INT NOT NULL,
+            small_blind INT NOT NULL,
         )
-    `);
+    `);//n_mano corrisponde al dealer
 
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Carta (
             id INT PRIMARY KEY AUTO_INCREMENT,
             valore INT NOT NULL,
             seme INT NOT NULL,
-            path VARCHAR(255) NOT NULL
+            path VARCHAR(255) NOT NULL,
+            UNIQUE (valore,seme)
         )
     `);
 
@@ -41,26 +44,18 @@ const createTables = async () => {
     `);
 
     await executeQuery(`
-        CREATE TABLE IF NOT EXISTS Istanza (
+        CREATE TABLE IF NOT EXISTS Giocatore (
             socket VARCHAR(255) NOT NULL,
             username VARCHAR(255) NOT NULL,
             tavolo INT,
-            pronto BOOLEAN,
-            PRIMARY KEY (username),
-            FOREIGN KEY (username) REFERENCES Utente(username) ON DELETE CASCADE,
-            FOREIGN KEY (tavolo) REFERENCES Tavolo(id) ON DELETE CASCADE
-        )
-    `);
-
-    await executeQuery(`
-        CREATE TABLE IF NOT EXISTS Giocatore (
-            username VARCHAR(255) NOT NULL,
             ordine INT NOT NULL,
+            pronto BOOLEAN,
             fiches INT,
             carta1 INT,
             carta2 INT,
             PRIMARY KEY (username),
-            FOREIGN KEY (username) REFERENCES Istanza(username) ON DELETE CASCADE,
+            FOREIGN KEY (username) REFERENCES Utente(username) ON DELETE CASCADE,
+            FOREIGN KEY (tavolo) REFERENCES Tavolo(id) ON DELETE CASCADE,
             FOREIGN KEY (carta1) REFERENCES Carta(id),
             FOREIGN KEY (carta2) REFERENCES Carta(id)
         )
@@ -68,13 +63,13 @@ const createTables = async () => {
 
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Mano (
-            id INT PRIMARY KEY AUTO_INCREMENT,
             tavolo INT NOT NULL,
             carta1 INT,
             carta2 INT,
             carta3 INT,
             carta4 INT,
             carta5 INT,
+            PRIMARY KEY (tavolo),
             FOREIGN KEY (tavolo) REFERENCES Tavolo(id) ON DELETE CASCADE,
             FOREIGN KEY (carta1) REFERENCES Carta(id),
             FOREIGN KEY (carta2) REFERENCES Carta(id),
@@ -87,11 +82,11 @@ const createTables = async () => {
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Puntata (
             giocatore VARCHAR(255) NOT NULL, 
-            mano INT NOT NULL,
+            tavolo INT NOT NULL,
             somma INT,
-            PRIMARY KEY (giocatore, mano),
+            PRIMARY KEY (giocatore, tavolo),
             FOREIGN KEY (giocatore) REFERENCES Giocatore(username) ON DELETE CASCADE,
-            FOREIGN KEY (mano) REFERENCES Mano(id) ON DELETE CASCADE
+            FOREIGN KEY (tavolo) REFERENCES Mano(tavolo) ON DELETE CASCADE
         )
     `);
 
@@ -112,8 +107,8 @@ const createTables = async () => {
             username2 VARCHAR(255) NOT NULL,
             tavolo INT NOT NULL,
             PRIMARY KEY (username1, username2, tavolo),
-            FOREIGN KEY (username1) REFERENCES Istanza(username) ON DELETE CASCADE,
-            FOREIGN KEY (username2) REFERENCES Istanza(username) ON DELETE CASCADE,
+            FOREIGN KEY (username1) REFERENCES Giocatore(username) ON DELETE CASCADE,
+            FOREIGN KEY (username2) REFERENCES Giocatore(username) ON DELETE CASCADE,
             FOREIGN KEY (tavolo) REFERENCES Tavolo(id) ON DELETE CASCADE
         )
     `); 
@@ -152,41 +147,49 @@ const check_username = async(username) => {
 
 
 
-/* ISTANZA */
+/* GIOCATORE */
 
-const create_instance = async(socket,username) => {
+const create_player = async(socket,username) => {
     await executeQuery(`
-        INSERT INTO Istanza (username, socket)
+        INSERT INTO Giocatore (username, socket)
         VALUES ('${username}','${socket}')
     `);
 };
 
-const delete_instance = async(username) => {
+const delete_player = async(username) => {
     await executeQuery(`
-        DELETE FROM Istanza
+        DELETE FROM Giocatore
         WHERE username = '${username}'
     `);
 };
 
-const ready = async(username) => {
+const remove_player_cards = async(username) => {
     await executeQuery(`
-        UPDATE Istanza
+        UPDATE Giocatore
+        SET carta1 = NULL, carta2 = NULL
+        WHERE username = '${username}'
+    `);
+};
+
+const ready = async(socket) => {
+    await executeQuery(`
+        UPDATE Giocatore
         SET pronto = True
-        WHERE username = '${username}'
+        WHERE socket = '${socket}'
     `);
 };
 
-const unready = async(username) => {
+const unready = async(socket) => {
     await executeQuery(`
-        UPDATE Istanza
+        UPDATE Giocatore
         SET pronto = False
-        WHERE username = '${username}'
+        WHERE socket = '${socket}'
     `);
 };
 
 const join_table = async(username, tavolo) => {
     await executeQuery(`
-        UPDATE Istanza
+        UPDATE Giocatore
         SET tavolo = ${tavolo}
         WHERE username = '${username}'
     `);
@@ -194,7 +197,7 @@ const join_table = async(username, tavolo) => {
 
 const leave_table = async(username) => {
     await executeQuery(`
-        UPDATE Istanza
+        UPDATE Giocatore
         SET tavolo = NULL
         WHERE username = '${username}'
     `);
@@ -202,14 +205,14 @@ const leave_table = async(username) => {
 
 const get_username = async(socket) => {
     return await executeQuery(`
-        SELECT username FROM Istanza
+        SELECT username FROM Giocatore
         WHERE socket = '${socket}'
     `);
 };
 
 const get_socket = async(username) => {
     return await executeQuery(`
-        SELECT socket FROM Istanza
+        SELECT socket FROM Giocatore
         WHERE username = '${username}'
     `);
 };
@@ -220,7 +223,7 @@ const get_socket = async(username) => {
 
 const create_table = async(username) => {
     await executeQuery(`
-        INSERT INTO Tavolo () VALUES ()
+        INSERT INTO Tavolo (n_mano,small_blind) VALUES (1,1)
     `);
     return select_last_insert_id();
 };
@@ -324,6 +327,78 @@ const get_friendships = async(username) => {
     `);//includere stato utente attraverso socket
 };
 
+
+
+/* MANO */
+
+const create_hand = async(tavolo) => {
+    await executeQuery(`
+        INSERT INTO Mano (tavolo)
+        VALUES (${tavolo})
+    `);
+};
+
+const delete_hand = async(tavolo) => {
+    await executeQuery(`
+        DELETE FROM Mano
+        WHERE tavolo = ${tavolo}
+    `);
+};
+
+const add_hand_cards = async(tavolo,c1,c2,c3,c4,c5) => {
+    await executeQuery(`
+        UPDATE Mano
+        SET carta1 = ${c1}, carta2 = ${c2}, carta3 = ${c3}, carta4 = ${c4}, carta5 = ${c5}
+        WHERE tavolo = ${tavolo}
+    `);
+};
+
+const get_hand_card = async(tavolo,n) => {
+    await executeQuery(`
+        SELECT carta${n} FROM Mano
+        WHERE tavolo = ${tavolo}
+    `);
+};
+
+
+
+/* PUNTATA */
+
+const create_bet = async(username, tavolo) => {
+    await executeQuery(`
+        INSERT INTO PUNTATA (giocatore, tavolo, somma)
+        VALUES ('${username}',${tavolo},0)
+    `);
+};
+
+const add_to_bet = async(username, tavolo, somma) => {
+    await executeQuery(`
+        UPDATE Mano
+        SET carta1 = ${c1}, carta2 = ${c2}, carta3 = ${c3}, carta4 = ${c4}, carta5 = ${c5}
+        WHERE tavolo = ${tavolo}
+    `);
+};
+
+
+
+/* CARTE */
+
+const create_card = async(valore,seme,path) => {
+    await executeQuery(`
+        INSERT INTO Carta (valore,seme,path)
+        VALUES (${valore},${seme},'${path}')
+    `);
+};
+
+const get_n_cards = async(n) => {
+    return await executeQuery(`
+        SELECT * FROM Carta
+        ORDER BY RAND()
+        LIMIT ${n}
+    `);
+};
+
+
 module.exports = {
     executeQuery: executeQuery,
     createTables: createTables,
@@ -332,8 +407,8 @@ module.exports = {
     signup: signup,
     check_username: check_username, //might not need it
 
-    create_instance: create_instance,
-    delete_instance: delete_instance,
+    create_player: create_player,
+    delete_player: delete_player,
     ready: ready,
     unready: unready,
     join_table: join_table,
@@ -357,5 +432,10 @@ module.exports = {
     delete_friendship: delete_friendship,
     get_requests: get_requests,
     get_friendships: get_friendships,
+
+    create_hand:create_hand,
+
+    create_card: create_card,
+    get_n_cards: get_n_cards
   };
   

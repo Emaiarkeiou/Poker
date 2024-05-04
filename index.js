@@ -112,17 +112,43 @@ const get_friendships = async(username) => {
     // filtrare via lo username di chi ha chiesto e stato
 };
 
+const get_bets = async(tavolo) => {
+    return {};
+};
+
+const get_cards = async(tavolo) => {
+    return {};
+};
+
+
+
+
 
 const start_game = async(tavolo) => {
+    await db.delete_invites_table(tavolo);  //delete all invites to table
+    const sockets = await io.in(tavolo).fetchSockets(); //get all sockets in table
+    await db.create_hand(tavolo);    //create mano
+    let i = 1;
+    sockets.forEach(async(socket) => { 
+        await db.unready(socket.id);    // unready everyone
+        await db.create_player(socket.id, (await db.get_username(socket.id))[0], i, 200);   //create players
+        //
+        i++;
+    });
+    //create puntate
+    //CartE
+
+    //ordine players
+    
     io.to(tavolo).emit("start game",get_players(tavolo));
-    //create mano
-    //Mano,fiches,Puntata,CartE
 };
 
 const end_game = async(tavolo) => {
     io.to(tavolo).emit("end game","end game");
     //delete mano
-    //Mano,fiches,Puntata,CartE
+    //update fiches di tutti
+    //delete players
+    //update n_mano del tavolo
 };
 
 
@@ -135,9 +161,7 @@ const io = new Server(server);
 
 io.of("/").adapter.on("join-room", async (room, id) => {
     io.to(room).emit("table",get_players(room));
-    //ordine players
-    // unready everyone
-    // delete all invites
+    //add ordine
 });
 
 io.of("/").adapter.on("leave-room", async (room, id) => {
@@ -267,9 +291,7 @@ io.on("connection", (socket) => {
     /* GIOCO */
 
     socket.on("ready", async () => {
-        const username = (await db.get_username(socket.id))[0];
-
-        await db.ready(username);
+        await db.ready(socket.id);
         const all_ready = await db.check_ready(socket.rooms[0]);
 
         io.to(socket.rooms[0]).emit("table",get_players(socket.rooms[0]));
@@ -279,9 +301,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("unready", async () => {
-        const username = (await db.get_username(socket.id))[0];
-
-        await db.unready(username);
+        await db.unready(socket.id);
 
         io.to(socket.rooms[0]).emit("lobby",get_players(socket.rooms[0]));
     });
@@ -289,7 +309,8 @@ io.on("connection", (socket) => {
     socket.on("move", async () => {
         //io.to(tavolo).emit("move",);
         //io.to(socket).emit("turn",);
-
+        //update fiches
+        //update puntata
         //await end_game(tavolo)
     });
 
@@ -303,7 +324,7 @@ io.on("connection", (socket) => {
         const username = (await db.get_username(socket.id))[0];
         const tavolo = await db.get_table(username)
 
-        await db.unready(username);
+        await db.unready(socket.id);
         await db.leave_table(username);
         io.in(socket.id).socketsLeave(tavolo);
         //emit players
@@ -313,7 +334,7 @@ io.on("connection", (socket) => {
         const username = (await db.get_username(socket.id))[0];
         const tavolo = await db.get_table(username)
 
-        await db.unready(username);
+        await db.unready(socket.id);
         await db.leave_table(username);
         io.in(socket.id).socketsLeave(tavolo);
         //delete_player
@@ -325,7 +346,7 @@ io.on("connection", (socket) => {
         const username = (await db.get_username(socket.id))[0];
         const tavolo = await db.get_table(username)
 
-        await db.unready(username);
+        await db.unready(socket.id);
         await db.leave_table(username);
         io.in(socket.id).socketsLeave(tavolo);
         //delete_player if exists
