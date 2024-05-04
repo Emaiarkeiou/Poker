@@ -59,10 +59,10 @@ app.post("/create_table", async(req, res) => {
     );
     if (result) {
         const tavolo = await db.create_table(req.headers.username);
-        await join_table(req.headers.username, tavolo);
+        const socket_id = (await db.get_socket(req.headers.username))[0];
 
-        const id = (await db.get_socket(req.headers.username))[0];
-        io.in(id).socketsJoin(tavolo);
+        await update_player_table(socket_id, tavolo);
+        io.in(socket_id).socketsJoin(tavolo);
 
         res.json({ result: "ok" });
         
@@ -72,12 +72,12 @@ app.post("/create_table", async(req, res) => {
     };
 });
 
-const logout = async (id) => {
-    const username = (await db.get_username(id))[0];
+const logout = async (socket_id) => {
+    const username = (await db.get_username(socket_id))[0];
     const friends_list = await get_friendships(username);
-    const invited_list = await get_invites(username);
+    const invited_list = await get_invites(socket_id);
 
-    await db.delete_instance(username);
+    await db.delete_player(socket_id);
 
     friends_list.forEach((friend) => {
         if (friend.socket) {
@@ -87,7 +87,7 @@ const logout = async (id) => {
         
     invited_list.forEach((invited) => {
         if (invited.socket) {
-            io.to(invited.socket).emit("invite",get_invites(invited.username));
+            io.to(invited.socket).emit("invite",get_invites(invited.socket));
         };
     });
 }
@@ -98,8 +98,8 @@ const get_players = async(tavolo) => {
     return {};
 };
 
-const get_invites = async(username) => {
-    return {};
+const get_invites = async(socket) => {
+    return await db.get_invites(socket);
     // filtrare via lo username di chi ha chiesto
 };
 
@@ -130,8 +130,8 @@ const start_game = async(tavolo) => {
     await db.create_hand(tavolo);    //create mano
     let i = 1;
     sockets.forEach(async(socket) => { 
-        await db.unready(socket.id);    // unready everyone
-        await db.create_player(socket.id, (await db.get_username(socket.id))[0], i, 200);   //create players
+        await db.update_ready(socket.id,"False");    // unready everyone
+        //assign fiches
         //
         i++;
     });
@@ -146,8 +146,7 @@ const start_game = async(tavolo) => {
 const end_game = async(tavolo) => {
     io.to(tavolo).emit("end game","end game");
     //delete mano
-    //update fiches di tutti
-    //delete players
+    //delete player cards
     //update n_mano del tavolo
 };
 
@@ -166,6 +165,8 @@ io.of("/").adapter.on("join-room", async (room, id) => {
 
 io.of("/").adapter.on("leave-room", async (room, id) => {
     io.to(room).emit("table",get_players(room));
+    // remove ordine
+    // change all ordine
     if ((await io.in(room).fetchSockets().size) === 0) {
         await db.delete_table(room);
     };
@@ -183,7 +184,7 @@ io.on("connection", (socket) => {
         const username = (await db.get_username(socket.id))[0];
         const friends_list = await get_friendships(username);
 
-        await db.create_instance(socket.id,username);
+        await db.create_player(socket.id,username);
 
         friends_list.forEach((friend) => {
             if (friend.socket) {
@@ -199,40 +200,35 @@ io.on("connection", (socket) => {
     /* INVITI AL TAVOLO */
 
     socket.on("invite", async (m) => {
-        const username1 = (await db.get_username(socket.id))[0];
-        const tavolo = await db.get_table(username1);
         const username2 = m.username;
         const socket2 = await (db.get_socket(username2))[0];
 
-        await db.create_invite(username1,username2,tavolo);
+        await db.create_invite(socket.id,socket2,socket.rooms[0]);
             
-        io.to(socket.id).emit("invite",get_invites(username1));
-        io.to(socket2).emit("invite",get_invites(username2));
+        io.to(socket.id).emit("invite",get_invites(socket.id));
+        io.to(socket2).emit("invite",get_invites(socket2));
     });
 
     socket.on("accept_invite", async (m) => {
         const username1 = m.username;
-        const tavolo = await db.get_table(username1);
-        const username2 = (await db.get_username(socket.id))[0];
         const socket1 = (await db.get_socket(username1))[0];
     
-        await db.delete_invite(username1,username2);
-        await join_table(username2, tavolo);
-        io.in(socket.id).socketsJoin(tavolo);
+        await db.delete_invite(socket1,socket.id);
+        await update_player_table(socket.id, socket.rooms[0]);
+        io.in(socket.id).socketsJoin(socket.rooms[0]);
 
-        io.to(socket1).emit("invite",get_invites(username1));
-        io.to(socket.id).emit("invite",get_invites(username2));
+        io.to(socket1).emit("invite",get_invites(socket1));
+        io.to(socket.id).emit("invite",get_invites(socket.id));
     });
 
     socket.on("reject_invite", async (m) => {
         const username1 = m.username;
-        const username2 = (await db.get_username(socket.id))[0];
         const socket1 = (await db.get_socket(username1))[0];
 
-        await db.delete_invite(username1,username2);
+        await db.delete_invite(socket1,socket.id);
 
-        io.to(socket1).emit("invite",get_invites(username1));
-        io.to(socket.id).emit("invite",get_invites(username2));
+        io.to(socket1).emit("invite",get_invites(socket1));
+        io.to(socket.id).emit("invite",get_invites(socket.id));
     });
 
 
@@ -291,7 +287,7 @@ io.on("connection", (socket) => {
     /* GIOCO */
 
     socket.on("ready", async () => {
-        await db.ready(socket.id);
+        await db.update_ready(socket.id,"True");
         const all_ready = await db.check_ready(socket.rooms[0]);
 
         io.to(socket.rooms[0]).emit("table",get_players(socket.rooms[0]));
@@ -301,7 +297,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("unready", async () => {
-        await db.unready(socket.id);
+        await db.update_ready(socket.id,"False");
 
         io.to(socket.rooms[0]).emit("lobby",get_players(socket.rooms[0]));
     });
@@ -321,34 +317,25 @@ io.on("connection", (socket) => {
     // quit, leave
 
     socket.on("quit_table", async () => {
-        const username = (await db.get_username(socket.id))[0];
-        const tavolo = await db.get_table(username)
-
-        await db.unready(socket.id);
-        await db.leave_table(username);
-        io.in(socket.id).socketsLeave(tavolo);
+        await db.update_ready(socket.id,"False");
+        await db.update_player_table(socket.id,"NULL");
+        io.in(socket.id).socketsLeave(socket.rooms[0]);
         //emit players
     });
 
     socket.on("quit_game_and_table", async (m) => {
-        const username = (await db.get_username(socket.id))[0];
-        const tavolo = await db.get_table(username)
-
-        await db.unready(socket.id);
-        await db.leave_table(username);
-        io.in(socket.id).socketsLeave(tavolo);
+        await db.update_ready(socket.id,"False");
+        await db.update_player_table(socket.id,"NULL");
+        io.in(socket.id).socketsLeave(socket.rooms[0]);
         //delete_player
         //emit players
 
     });
 
     socket.on("disconnect", async () => {
-        const username = (await db.get_username(socket.id))[0];
-        const tavolo = await db.get_table(username)
-
-        await db.unready(socket.id);
-        await db.leave_table(username);
-        io.in(socket.id).socketsLeave(tavolo);
+        await db.update_ready(socket.id,"False");
+        await db.update_player_table(socket.id,"NULL");
+        io.in(socket.id).socketsLeave(socket.rooms[0]);
         //delete_player if exists
 
         await logout(socket.id);

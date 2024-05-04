@@ -53,7 +53,7 @@ const createTables = async () => {
             fiches INT,
             carta1 INT,
             carta2 INT,
-            PRIMARY KEY (username),
+            PRIMARY KEY (socket),
             FOREIGN KEY (username) REFERENCES Utente(username) ON DELETE CASCADE,
             FOREIGN KEY (tavolo) REFERENCES Tavolo(id) ON DELETE CASCADE,
             FOREIGN KEY (carta1) REFERENCES Carta(id),
@@ -85,7 +85,7 @@ const createTables = async () => {
             tavolo INT NOT NULL,
             somma INT,
             PRIMARY KEY (giocatore, tavolo),
-            FOREIGN KEY (giocatore) REFERENCES Giocatore(username) ON DELETE CASCADE,
+            FOREIGN KEY (giocatore) REFERENCES Giocatore(socket) ON DELETE CASCADE,
             FOREIGN KEY (tavolo) REFERENCES Mano(tavolo) ON DELETE CASCADE
         )
     `);
@@ -103,12 +103,12 @@ const createTables = async () => {
 
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Invito (
-            username1 VARCHAR(255) NOT NULL, 
-            username2 VARCHAR(255) NOT NULL,
+            giocatore1 VARCHAR(255) NOT NULL, 
+            giocatore2 VARCHAR(255) NOT NULL,
             tavolo INT NOT NULL,
-            PRIMARY KEY (username1, username2, tavolo),
-            FOREIGN KEY (username1) REFERENCES Giocatore(username) ON DELETE CASCADE,
-            FOREIGN KEY (username2) REFERENCES Giocatore(username) ON DELETE CASCADE,
+            PRIMARY KEY (giocatore1, giocatore2, tavolo),
+            FOREIGN KEY (giocatore1) REFERENCES Giocatore(socket) ON DELETE CASCADE,
+            FOREIGN KEY (giocatore2) REFERENCES Giocatore(socket) ON DELETE CASCADE,
             FOREIGN KEY (tavolo) REFERENCES Tavolo(id) ON DELETE CASCADE
         )
     `); 
@@ -149,57 +149,49 @@ const check_username = async(username) => {
 
 /* GIOCATORE */
 
-const create_player = async(socket,username) => {
+const create_player = async(socket,username) => {   //CREATE socket,username
     await executeQuery(`
         INSERT INTO Giocatore (username, socket)
         VALUES ('${username}','${socket}')
     `);
 };
 
-const delete_player = async(username) => {
+const delete_player = async(socket) => {          //DELETE
     await executeQuery(`
         DELETE FROM Giocatore
-        WHERE username = '${username}'
-    `);
-};
-
-const remove_player_cards = async(username) => {
-    await executeQuery(`
-        UPDATE Giocatore
-        SET carta1 = NULL, carta2 = NULL
-        WHERE username = '${username}'
-    `);
-};
-
-const ready = async(socket) => {
-    await executeQuery(`
-        UPDATE Giocatore
-        SET pronto = True
         WHERE socket = '${socket}'
     `);
 };
 
-const unready = async(socket) => {
+const update_ready = async(socket,pronto) => {      //UPDATE pronto ("True" o "False")
     await executeQuery(`
         UPDATE Giocatore
-        SET pronto = False
+        SET pronto = ${pronto}
         WHERE socket = '${socket}'
     `);
 };
 
-const join_table = async(username, tavolo) => {
+const update_player_table = async(socket, tavolo) => {     //UPDATE tavolo (INT o "NULL")
     await executeQuery(`
         UPDATE Giocatore
         SET tavolo = ${tavolo}
-        WHERE username = '${username}'
+        WHERE socket = '${socket}'
     `);
 };
 
-const leave_table = async(username) => {
+const update_player_cards = async(socket,c1,c2) => {      //UPDATE carte (INT o "NULL")
     await executeQuery(`
         UPDATE Giocatore
-        SET tavolo = NULL
-        WHERE username = '${username}'
+        SET carta1 = ${c1}, carta2 = ${c2}
+        WHERE socket = '${socket}'
+    `);
+};
+
+const update_player_order = async(socket,ordine) => {     //UPDATE ordine (INT o "NULL")
+    await executeQuery(`
+        UPDATE Giocatore
+        SET ordine = ${ordine}
+        WHERE socket = '${socket}'
     `);
 };
 
@@ -221,7 +213,7 @@ const get_socket = async(username) => {
 
 /* TAVOLO */
 
-const create_table = async(username) => {
+const create_table = async() => {
     await executeQuery(`
         INSERT INTO Tavolo (n_mano,small_blind) VALUES (1,1)
     `);
@@ -235,16 +227,16 @@ const delete_table = async(tavolo) => {
     `);
 };
 
-const get_table = async(username) => {
+const get_table = async(socket) => {
     return await executeQuery(`
-        SELECT tavolo FROM Utente
-        WHERE username = '${username}'
+        SELECT tavolo FROM Giocatore
+        WHERE socket = '${socket}'
     `);
 };
 
 const check_ready = async(tavolo) => {
     return await executeQuery(`
-        SELECT pronto FROM Utente
+        SELECT pronto FROM Giocatore
         WHERE tavolo = ${tavolo}
     `);
 };
@@ -253,18 +245,18 @@ const check_ready = async(tavolo) => {
 
 /* INVITO */
 
-const create_invite = async(username1,username2,tavolo) => {
+const create_invite = async(socket1,socket2,tavolo) => {
     await executeQuery(`
-        INSERT INTO Invito (utente1,utente2,tavolo)
-        VALUES ('${username1}','${username2}',${tavolo})
+        INSERT INTO Invito (giocatore1,giocatore2,tavolo)
+        VALUES ('${socket1}','${socket2}',${tavolo})
     `);
 };
 
-const delete_invite = async(username1,username2) => {
+const delete_invite = async(socket1,socket2) => {
     await executeQuery(`
         DELETE FROM Invito
-        WHERE utente1 = '${username1}'
-            AND utente2 = '${username2}'
+        WHERE utente1 = '${socket1}'
+            AND utente2 = '${socket2}'
     `);
 };
 
@@ -275,13 +267,13 @@ const delete_invites_table = async(tavolo) => {
     `);
 };
 
-const get_invites = async(username) => {
+const get_invites = async(socket) => {
     return await executeQuery(`
         SELECT * FROM Invito
         WHERE accettata = False
-            AND (utente1 = '${username}' OR utente2 = '${username}')
+            AND (giocatore1 = '${socket}' OR giocatore2 = '${socket}')
     `);
-}
+};
 
 
 
@@ -407,24 +399,25 @@ module.exports = {
     signup: signup,
     check_username: check_username, //might not need it
 
-    create_player: create_player,
-    delete_player: delete_player,
-    ready: ready,
-    unready: unready,
-    join_table: join_table,
-    leave_table: leave_table,
-    get_username: get_username,     //get username by socket
-    get_socket: get_socket,         //get socket by username
+    create_player: create_player,   //CREATE socket, username
+    delete_player: delete_player,                               //using socket
+    update_ready: update_ready,                                 //using socket     
+    update_player_table: update_player_table,                   //using socket
+    update_player_cards:update_player_cards,                    //using socket
+    //fiches
+    //ordine
+    get_username: get_username,     //get username              //using socket
+    get_socket: get_socket,         //get socket                //using username
 
-    create_table: create_table,
-    delete_table: delete_table,
-    get_table: get_table,           //get table by username
-    check_ready: check_ready,
+    create_table: create_table,     //CREATE n_mano, piccolo_buio
+    delete_table: delete_table,     //using id
+    get_table: get_table,           //get table                 //using socket
+    check_ready: check_ready,       //check if every1 is ready  //using tavolo
 
-    create_invite: create_invite,
-    delete_invite: delete_invite,
-    delete_invites_table: delete_invites_table,     //delete all invites linked to a table
-    get_invites: get_invites,
+    create_invite: create_invite,   //CREATE giocatore1-2       //using socket       
+    delete_invite: delete_invite,                               //using socket
+    delete_invites_table: delete_invites_table,                 //using tavolo
+    get_invites: get_invites,                                   //using socket
 
     create_request: create_request,
     accept_request: accept_request,
