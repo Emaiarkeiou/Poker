@@ -62,13 +62,13 @@ const createTables = async () => {
 
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Mano (
+            id INT PRIMARY KEY AUTO_INCREMENT,
             tavolo INT NOT NULL,
             carta1 INT,
             carta2 INT,
             carta3 INT,
             carta4 INT,
             carta5 INT,
-            PRIMARY KEY (tavolo),
             FOREIGN KEY (tavolo) REFERENCES Tavolo(id) ON DELETE CASCADE,
             FOREIGN KEY (carta1) REFERENCES Carta(id),
             FOREIGN KEY (carta2) REFERENCES Carta(id),
@@ -85,7 +85,7 @@ const createTables = async () => {
             somma INT,
             PRIMARY KEY (giocatore, mano),
             FOREIGN KEY (giocatore) REFERENCES Giocatore(socket) ON DELETE CASCADE,
-            FOREIGN KEY (mano) REFERENCES Mano(tavolo) ON DELETE CASCADE
+            FOREIGN KEY (mano) REFERENCES Mano(id) ON DELETE CASCADE
         )
     `);
 
@@ -178,14 +178,6 @@ const update_player_table = async(socket, tavolo) => {      //UPDATE tavolo (INT
     `);
 };
 
-const update_player_cards = async(socket,c1,c2) => {        //UPDATE carte (INT o "NULL")
-    await executeQuery(`
-        UPDATE Giocatore
-        SET carta1 = ${c1}, carta2 = ${c2}
-        WHERE socket = '${socket}'
-    `);
-};
-
 const update_order = async(socket,ordine) => {              //UPDATE ordine (INT o "NULL")
     await executeQuery(`
         UPDATE Giocatore
@@ -213,31 +205,6 @@ const get_socket = async(username) => {
     return await executeQuery(`
         SELECT socket FROM Giocatore
         WHERE username = '${username}'
-    `);
-};
-
-
-
-/* TAVOLO */
-
-const create_table = async() => {
-    await executeQuery(`
-        INSERT INTO Tavolo (n_mano,small_blind) VALUES (1,1)
-    `);
-    return select_last_insert_id();
-};
-
-const delete_table = async(tavolo) => {
-    await executeQuery(`
-        DELETE FROM Tavolo
-        WHERE id = ${tavolo}
-    `);
-};
-
-const check_ready = async(tavolo) => {
-    return await executeQuery(`
-        SELECT pronto FROM Giocatore
-        WHERE tavolo = ${tavolo}
     `);
 };
 
@@ -328,6 +295,39 @@ const get_friendships = async(username) => {
 
 
 
+/* TAVOLO */
+
+const create_table = async() => {
+    await executeQuery(`
+        INSERT INTO Tavolo (n_mano,small_blind) VALUES (1,1)
+    `);
+    return select_last_insert_id();
+};
+
+const delete_table = async(tavolo) => {
+    await executeQuery(`
+        DELETE FROM Tavolo
+        WHERE id = ${tavolo}
+    `);
+};
+
+const increment_table_mano = async(tavolo) => {
+    await executeQuery(`
+        UPDATE Tavolo
+        SET n_mano = n_mano + 1
+        WHERE id = '${tavolo}'
+    `);
+};
+
+const check_ready = async(tavolo) => {
+    return await executeQuery(`
+        SELECT pronto FROM Giocatore
+        WHERE tavolo = ${tavolo}
+    `);
+};
+
+
+
 /* MANO */
 
 const create_hand = async(tavolo) => {
@@ -335,27 +335,13 @@ const create_hand = async(tavolo) => {
         INSERT INTO Mano (tavolo)
         VALUES (${tavolo})
     `);
+    return select_last_insert_id();
 };
 
-const delete_hand = async(tavolo) => {
+const delete_hand = async(mano) => {
     await executeQuery(`
         DELETE FROM Mano
-        WHERE tavolo = ${tavolo}
-    `);
-};
-
-const add_hand_cards = async(tavolo,c1,c2,c3,c4,c5) => {
-    await executeQuery(`
-        UPDATE Mano
-        SET carta1 = ${c1}, carta2 = ${c2}, carta3 = ${c3}, carta4 = ${c4}, carta5 = ${c5}
-        WHERE tavolo = ${tavolo}
-    `);
-};
-
-const get_hand_card = async(tavolo,n) => {
-    await executeQuery(`
-        SELECT carta${n} FROM Mano
-        WHERE tavolo = ${tavolo}
+        WHERE id = ${mano}
     `);
 };
 
@@ -363,18 +349,16 @@ const get_hand_card = async(tavolo,n) => {
 
 /* PUNTATA */
 
-const create_bet = async(username, tavolo) => {
+const create_bet = async(socket, mano) => {
     await executeQuery(`
-        INSERT INTO PUNTATA (giocatore, tavolo, somma)
-        VALUES ('${username}',${tavolo},0)
+        INSERT INTO PUNTATA (giocatore, mano, somma)
+        VALUES ('${socket}',${mano},0)
     `);
 };
 
 const add_to_bet = async(username, tavolo, somma) => {
     await executeQuery(`
-        UPDATE Mano
-        SET carta1 = ${c1}, carta2 = ${c2}, carta3 = ${c3}, carta4 = ${c4}, carta5 = ${c5}
-        WHERE tavolo = ${tavolo}
+        
     `);
 };
 
@@ -391,11 +375,48 @@ const create_card = async(valore,seme,path) => {
 
 const get_n_cards = async(n) => {
     return await executeQuery(`
-        SELECT * FROM Carta
+        SELECT id FROM Carta
         ORDER BY RAND()
         LIMIT ${n}
     `);
 };
+
+
+const update_player_cards = async(socket,c1,c2) => {
+    await executeQuery(`
+        UPDATE Giocatore
+        SET carta1 = ${c1}, carta2 = ${c2}
+        WHERE socket = '${socket}'
+    `);
+};
+
+const get_player_card = async(socket,n) => {
+    return await executeQuery(`
+        SELECT Carta.id, Carta.path
+        FROM Carta, Giocatore
+        WHERE Giocatore.carta${n} = Carta.id
+            AND Giocatore.socket = ${socket}
+    `);
+};
+
+
+const update_hand_cards = async(mano,c1,c2,c3,c4,c5) => {
+    await executeQuery(`
+        UPDATE Mano
+        SET carta1 = ${c1}, carta2 = ${c2}, carta3 = ${c3}, carta4 = ${c4}, carta5 = ${c5}
+        WHERE id = ${mano}
+    `);
+};
+
+const get_hand_card = async(mano,n) => {
+    return await executeQuery(`
+        SELECT Carta.id, Carta.path
+        FROM Carta, Mano
+        WHERE Mano.carta${n} = Carta.id
+            AND Mano.id = ${mano}
+    `);
+};
+
 
 
 module.exports = {
@@ -410,15 +431,10 @@ module.exports = {
     delete_player: delete_player,                               //using socket
     update_ready: update_ready,                                 //using socket     
     update_player_table: update_player_table,                   //using socket
-    update_player_cards:update_player_cards,                    //using socket
     update_order:update_order,                                  //using socket
     update_fiches:update_fiches,                                //using socket
     get_username: get_username,     //get username              //using socket
     get_socket: get_socket,         //get socket                //using username
-
-    create_table: create_table,     //CREATE n_mano, piccolo_buio
-    delete_table: delete_table,     //using id
-    check_ready: check_ready,       //check if every1 is ready  //using tavolo
 
     create_invite: create_invite,   //CREATE giocatore1-2       //using socket       
     delete_invite: delete_invite,                               //using socket
@@ -433,9 +449,19 @@ module.exports = {
     get_requests: get_requests,                                 //using username
     get_friendships: get_friendships,                           //using username
 
+    create_table: create_table,     //CREATE n_mano, piccolo_buio
+    delete_table: delete_table,                                 //using tavolo                 
+    increment_table_mano:increment_table_mano,                  //using tavolo
+    check_ready: check_ready,       //check if every1 is ready  //using tavolo
+
     create_hand:create_hand,
+    delete_hand:delete_hand,                                    //using mano
 
     create_card: create_card,
-    get_n_cards: get_n_cards
+    get_n_cards: get_n_cards,
+    update_player_cards:update_player_cards,                    //using socket
+    get_player_card:get_player_card,                            //using socket
+    update_hand_cards:update_hand_cards,                        //using mano
+    get_hand_card:get_hand_card,                                //using mano
   };
   
