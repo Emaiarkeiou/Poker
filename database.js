@@ -62,9 +62,9 @@ const createTables = async () => {
 
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Mano (
-            id INT PRIMARY KEY AUTO_INCREMENT,
+            tavolo INT PRIMARY KEY,
             turno INT NOT NULL,
-            tavolo INT NOT NULL,
+            tipo_turno VARCHAR(255) NOT NULL,
             carta1 INT,
             carta2 INT,
             carta3 INT,
@@ -86,7 +86,7 @@ const createTables = async () => {
             somma INT,
             PRIMARY KEY (giocatore, mano),
             FOREIGN KEY (giocatore) REFERENCES Giocatore(socket) ON DELETE CASCADE,
-            FOREIGN KEY (mano) REFERENCES Mano(id) ON DELETE CASCADE
+            FOREIGN KEY (mano) REFERENCES Mano(tavolo) ON DELETE CASCADE
         )
     `);
 
@@ -345,42 +345,43 @@ const check_ready = async(tavolo) => {
 
 /* MANO */
 
-const create_hand = async(tavolo) => {
+const create_hand = async(tavolo,turno,tipo) => {
     await executeQuery(`
-        INSERT INTO Mano (turno,tavolo)
-        VALUES (1,${tavolo})
+        INSERT INTO Mano (tavolo,turno,tipo_turno)
+        VALUES (${tavolo},${turno},${tipo})
     `);
-    return select_last_insert_id();
 };
 
-const delete_hand = async(mano) => {
+const delete_hand = async(tavolo) => {
     await executeQuery(`
         DELETE FROM Mano
-        WHERE id = ${mano}
+        WHERE tavolo = ${tavolo}
     `);
 };
 
-const update_hand_turn = async(mano,turno) => {
+const update_hand_turn = async(tavolo,turno,tipo) => {
     await executeQuery(`
         UPDATE Mano
-        SET turno = ${turno}
-        WHERE id = ${mano}
+        SET turno = ${turno}, tipo_turno = ${tipo}
+        WHERE tavolo = ${tavolo}
     `);
 };
 
-const get_hand_turn = async(mano) => {
+const get_hand_turn = async(tavolo) => {
     await executeQuery(`
-        SELECT turno FROM Mano
-        WHERE id = ${mano}
+        SELECT turno,tipo_turno FROM Mano
+        WHERE tavolo = ${tavolo}
     `);
 };
+
+
 
 /* PUNTATA */
 
-const create_bet = async(socket, mano) => {
+const create_bet = async(socket, tavolo) => {
     await executeQuery(`
         INSERT INTO PUNTATA (giocatore, mano, somma)
-        VALUES ('${socket}',${mano},0)
+        VALUES ('${socket}',${tavolo},0)
     `);
 };
 
@@ -428,22 +429,22 @@ const get_player_card = async(socket,n) => {
 };
 
 
-const update_hand_cards = async(mano,carte) => {
+const update_hand_cards = async(tavolo,carte) => {
     await executeQuery(`
         UPDATE Mano
         SET carta1 = ${carte[0]}, carta2 = ${carte[1]}, 
             carta3 = ${carte[2]}, carta4 = ${carte[3]}, 
             carta5 = ${carte[4]}
-        WHERE id = ${mano}
+        WHERE tavolo = ${tavolo}
     `);
 };
 
-const get_hand_card = async(mano,n) => {
+const get_hand_card = async(tavolo,n) => {
     return await executeQuery(`
         SELECT Carta.id, Carta.path
         FROM Carta, Mano
         WHERE Mano.carta${n} = Carta.id
-            AND Mano.id = ${mano}
+            AND Mano.tavolo = ${tavolo}
     `);
 };
 
@@ -487,15 +488,15 @@ module.exports = {
     check_ready: check_ready,       //check if every1 is ready  //using tavolo
 
     create_hand:create_hand,
-    delete_hand:delete_hand,                                    //using mano
-    update_hand_turn:update_hand_turn,                          //using mano
-    get_hand_turn:get_hand_turn,                                //using mano
+    delete_hand:delete_hand,                                    //using tavolo
+    update_hand_turn:update_hand_turn,                          //using tavolo
+    get_hand_turn:get_hand_turn,                                //using tavolo
 
     create_card: create_card,
     get_n_cards: get_n_cards,
     update_player_cards:update_player_cards,                    //using socket
     get_player_card:get_player_card,                            //using socket
-    update_hand_cards:update_hand_cards,                        //using mano
-    get_hand_card:get_hand_card,                                //using mano
+    update_hand_cards:update_hand_cards,                        //using tavolo
+    get_hand_card:get_hand_card,                                //using tavolo
   };
   
