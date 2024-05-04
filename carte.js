@@ -5,7 +5,7 @@ const generate_cards = async() => {
         for (let valore=2; valore<15; valore++) {
             try {
                 await db.create_card(valore,seme,"");
-            } finally {};
+            } catch(e) {};
         };
     };
 };

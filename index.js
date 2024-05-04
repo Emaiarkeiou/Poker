@@ -8,11 +8,16 @@ const { Server } = require("socket.io");
 
 const db = require("./database.js");
 const carte = require("./carte.js");
-
-db.createTables(); //crea le tabelle se non esistono
-carte.generate_cards();
+const init = async () => {
+    await db.createTables(); //crea le tabelle se non esistono
+    await carte.generate_cards();
+    console.log("creato")
+}
+init();
 
 const STARTING_FICHES = 250;
+
+
 
 app.use(bodyParser.json());
 app.use(
@@ -22,9 +27,7 @@ app.use(
 );
 app.use("/", express.static(path.join(__dirname, "")));
 
-
 const server = http.createServer(app);
-
 
 app.post("/login", async(req, res) => {
     const result = await db.login(
@@ -111,7 +114,10 @@ const get_requests = async(username) => {
 };
 
 const get_friendships = async(username) => {
-    return await db.get_friendships(username);
+    const amicizie = await db.get_friendships(username);
+    //db.get_socket(username)
+    // mandare solo una lista di oggetti {username:,online:}
+    // la socket per capire se è online
     // filtrare via lo username di chi ha chiesto e stato
 };
 
@@ -122,8 +128,8 @@ const get_players = async(tavolo) => {
 };
 
 const get_hand = async(mano) => {
-    //tavolo information: dealer,small blind=n_mano*0.5
-    //hand information: somma puntate
+    //tavolo information: dealer/n_mano,small blind=n_mano*0.5, turno
+    //hand information: somma puntate, carte
     return {};
 };
 
@@ -144,54 +150,73 @@ const get_move = async(tavolo) => {
 const start_hand = async(tavolo) => {
     await db.delete_invites_table(tavolo);  //delete all invites to table
     const sockets = await io.in(tavolo).fetchSockets(); //get all sockets in table
-    mano = await db.create_hand(tavolo);    //create mano
+    const mano = await db.create_hand(tavolo);    //create mano
+
+    const carte = await db.get_n_cards((sockets.length*2)+5);   //carte
+    await db.update_hand_cards(mano,carte.splice(0,5));
+
     sockets.forEach(async(socket) => { 
         await db.update_ready(socket.id,"False");    // unready everyone
+        await db.update_player_cards(socket.id,carte.splice(0,2));
     });
 
-    //CartE
-    
     io.to(tavolo).emit("start hand",get_hand(mano));
     io.to(room).emit("players",get_players(room));
 
-    //ordine players
-    //select ordine = 1
-    io.to(friend.socket).emit("turn","small blind");
+    io.to((await db.get_player_by_order(tavolo,1))[0]).emit("turn","small blind");
 };
 
 const end_hand = async(mano,tavolo) => {
     io.to(tavolo).emit("end hand","end hand");
     //eliminare la mano o tenere traccia di tutte le mani del tavolo? per ora non serve la mano
-    await db.delete_hand(mano);     //delete mano?
+    await db.delete_hand(mano);     //delete mano
     const sockets = await io.in(tavolo).fetchSockets(); //get all sockets in table
     sockets.forEach(async(socket) => { 
         await db.update_player_cards(socket.id,"NULL","NULL");   //delete player cards
     });
     await db.increment_table_mano(tavolo);      //update n_mano del tavolo
-    //update dealer
 };
 
 
 
-
-
-
+/* DESCRIZIONE MESSAGGI CHE MANDA IL SERVER
+    "request"       manda tutte le richieste di amicizia mandate o ricevute dal client
+    "invite"        manda tutti gli inviti al tavolo mandati o ricevuti dal client
+    "friends"       manda tutti gli username e stati online degli amici del client
+    "start hand"    manda le informazioni generali della mano: piatto, dealer, small blind, turno
+    "players"       manda le informazioni generali dei giocatori del tavolo: pronto, fiches, ordine(per disegnarli in ordine)
+    "your cards"    manda le carte del client con id e immagine
+    "hand"          manda le informazioni generali della mano: piatto, dealer, small blind, turno, carte presenti
+    "turn"          dice al client che è il suo turno e dice cosa è: small blind...
+    "move"          manda le informazioni della mossa fatta
+    "end hand"      dice al client che la mano è finita
+*/
 
 const io = new Server(server);
 
 io.of("/").adapter.on("join-room", async (room, socket_id) => {
-    await db.update_order(socket_id,(await io.in(room).fetchSockets().size))
+    await db.update_player_order(socket_id,((await io.in(room).fetchSockets()).length))
     await db.update_fiches(socket_id,STARTING_FICHES)
     io.to(room).emit("players",get_players(room));
 });
 
 io.of("/").adapter.on("leave-room", async (room, socket_id) => {
-    await db.update_order(socket_id,"NULL");
-    await db.update_fiches(socket.id,"NULL");
-    if ((await io.in(room).fetchSockets().size) === 0) {
+    await db.delete_invites_player(socket_id);              //inviti
+    await db.update_ready(socket_id,"False");               //pronto
+    await db.update_player_table(socket_id,"NULL");         //tavolo
+    await db.update_player_cards(socket_id,"NULL","NULL")   //carte
+    await db.update_fiches(socket_id,"NULL");               //fiches
+
+    const ordine = (await db.get_player_order(socket_id))[0];
+    await db.update_player_order(socket_id,"NULL");         //ordine
+    if ((await io.in(room).fetchSockets()).length === 0) {
         await db.delete_table(room);
     } else {
+        if (ordine == (await db.get_hand_turn())[0]) {
+
+        };
         // change all ordine
+        // resend turn if left
         io.to(room).emit("players",get_players(room));
     };
 });
@@ -214,7 +239,7 @@ io.on("connection", (socket) => {
         socket.emit("request",get_requests(username));
 
         friendships.forEach((friend) => {
-            if (friend.socket) {
+            if (friend.online) {
                 io.to(friend.socket).emit("friends",get_friendships(friend.username));
             };
         });
@@ -227,9 +252,9 @@ io.on("connection", (socket) => {
     /* INVITI AL TAVOLO */
 
     socket.on("invite", async (m) => {
-        //si può invitare anche quando non si è alla prima mano?
+        //si può invitare anche quando non si è alla prima mano?si
         const username2 = m.username;
-        const socket2 = await (db.get_socket(username2))[0];
+        const socket2 = (await db.get_socket(username2))[0];
 
         await db.create_invite(socket.id,socket2,socket.rooms[0]);
             
@@ -330,13 +355,14 @@ io.on("connection", (socket) => {
         io.to(socket.rooms[0]).emit("players",get_players(socket.rooms[0]));
     });
 
-    socket.on("move", async () => {
+    socket.on("move", async (m) => {
+        //tipo? allin raise call
         //update/create puntata
         //update fiches
         //await end_hand(tavolo)
-        //tipo? allin raise call
         //fold o perso: togli l'ordine
-        //io.to(tavolo).emit("move",);
+        //io.to(socket.rooms[0]).emit("move",);
+        //io.to(socket.rooms[0]).emit("hand",);
 
         //check if tutti hanno puntato
             //check if ultima fase
@@ -344,6 +370,7 @@ io.on("connection", (socket) => {
 
         //prendi ordine
         //select ordine = $ordine+1 o 1
+        //update_hand_turn (turn = ordine)
         //io.to(socket).emit("turn","chi sei");
     });
 
@@ -354,22 +381,12 @@ io.on("connection", (socket) => {
     // quit, leave
 
     socket.on("quit_table", async () => {
-        await db.delete_invites_player(socket.id);              //inviti
-        await db.update_ready(socket.id,"False");               //pronto
-        await db.update_player_table(socket.id,"NULL");         //tavolo
-        io.in(socket.id).socketsLeave(socket.rooms[0]);         //ordine,fiches
-    });
-
-    socket.on("quit_hand_and_table", async (m) => {
-        await db.delete_invites_player(socket.id);              //inviti
-        await db.update_ready(socket.id,"False");               //pronto
-        await db.update_player_table(socket.id,"NULL");         //tavolo
-        await db.update_player_cards(socket.id,"NULL","NULL")   //carte
-        io.in(socket.id).socketsLeave(socket.rooms[0]);         //ordine,fiches
+        io.in(socket.id).socketsLeave(socket.rooms[0]);
     });
 
     socket.on("disconnect", async () => {
-        io.in(socket.id).socketsLeave(socket.rooms[0]);
+        io.in(socket.id).socketsLeave(socket.rooms[0]); 
+        //await 
         await logout(socket.id);                                //player
     });
 });

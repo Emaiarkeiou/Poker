@@ -63,6 +63,7 @@ const createTables = async () => {
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Mano (
             id INT PRIMARY KEY AUTO_INCREMENT,
+            turno INT NOT NULL,
             tavolo INT NOT NULL,
             carta1 INT,
             carta2 INT,
@@ -178,7 +179,7 @@ const update_player_table = async(socket, tavolo) => {      //UPDATE tavolo (INT
     `);
 };
 
-const update_order = async(socket,ordine) => {              //UPDATE ordine (INT o "NULL")
+const update_player_order = async(socket,ordine) => {              //UPDATE ordine (INT o "NULL")
     await executeQuery(`
         UPDATE Giocatore
         SET ordine = ${ordine}
@@ -208,6 +209,20 @@ const get_socket = async(username) => {
     `);
 };
 
+const get_player_order = async(socket) => {
+    return await executeQuery(`
+        SELECT ordine FROM Giocatore
+        WHERE socket = ${socket}
+    `);
+};
+
+const get_player_by_order = async(tavolo, ordine) => {
+    return await executeQuery(`
+        SELECT socket FROM Giocatore
+        WHERE tavolo = ${tavolo}
+            AND ordine = ${ordine}
+    `);
+};
 
 
 /* INVITO */
@@ -332,8 +347,8 @@ const check_ready = async(tavolo) => {
 
 const create_hand = async(tavolo) => {
     await executeQuery(`
-        INSERT INTO Mano (tavolo)
-        VALUES (${tavolo})
+        INSERT INTO Mano (turno,tavolo)
+        VALUES (1,${tavolo})
     `);
     return select_last_insert_id();
 };
@@ -345,7 +360,20 @@ const delete_hand = async(mano) => {
     `);
 };
 
+const update_hand_turn = async(mano,turno) => {
+    await executeQuery(`
+        UPDATE Mano
+        SET turno = ${turno}
+        WHERE id = ${mano}
+    `);
+};
 
+const get_hand_turn = async(mano) => {
+    await executeQuery(`
+        SELECT turno FROM Mano
+        WHERE id = ${mano}
+    `);
+};
 
 /* PUNTATA */
 
@@ -382,10 +410,10 @@ const get_n_cards = async(n) => {
 };
 
 
-const update_player_cards = async(socket,c1,c2) => {
+const update_player_cards = async(socket,carte) => {
     await executeQuery(`
         UPDATE Giocatore
-        SET carta1 = ${c1}, carta2 = ${c2}
+        SET carta1 = ${carte[0]}, carta2 = ${carte[1]}
         WHERE socket = '${socket}'
     `);
 };
@@ -400,10 +428,12 @@ const get_player_card = async(socket,n) => {
 };
 
 
-const update_hand_cards = async(mano,c1,c2,c3,c4,c5) => {
+const update_hand_cards = async(mano,carte) => {
     await executeQuery(`
         UPDATE Mano
-        SET carta1 = ${c1}, carta2 = ${c2}, carta3 = ${c3}, carta4 = ${c4}, carta5 = ${c5}
+        SET carta1 = ${carte[0]}, carta2 = ${carte[1]}, 
+            carta3 = ${carte[2]}, carta4 = ${carte[3]}, 
+            carta5 = ${carte[4]}
         WHERE id = ${mano}
     `);
 };
@@ -431,10 +461,12 @@ module.exports = {
     delete_player: delete_player,                               //using socket
     update_ready: update_ready,                                 //using socket     
     update_player_table: update_player_table,                   //using socket
-    update_order:update_order,                                  //using socket
+    update_player_order:update_player_order,                    //using socket
     update_fiches:update_fiches,                                //using socket
     get_username: get_username,     //get username              //using socket
     get_socket: get_socket,         //get socket                //using username
+    get_player_order: get_player_order,                         //using socket
+    get_player_by_order:get_player_by_order,                    //using tavolo,ordine
 
     create_invite: create_invite,   //CREATE giocatore1-2       //using socket       
     delete_invite: delete_invite,                               //using socket
@@ -456,6 +488,8 @@ module.exports = {
 
     create_hand:create_hand,
     delete_hand:delete_hand,                                    //using mano
+    update_hand_turn:update_hand_turn,                          //using mano
+    get_hand_turn:get_hand_turn,                                //using mano
 
     create_card: create_card,
     get_n_cards: get_n_cards,
