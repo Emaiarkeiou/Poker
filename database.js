@@ -23,7 +23,8 @@ const createTables = async () => {
             n_mano INT NOT NULL,
             small_blind INT NOT NULL
         )
-    `);//n_mano corrisponde al dealer
+    `); //n_mano corrisponde al dealer perchè gira
+        //small blind è la quantità che deve puntare
 
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Carta (
@@ -63,8 +64,8 @@ const createTables = async () => {
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Mano (
             tavolo INT PRIMARY KEY,
+            giro INT NOT NULL
             turno INT NOT NULL,
-            tipo_turno VARCHAR(255) NOT NULL,
             carta1 INT,
             carta2 INT,
             carta3 INT,
@@ -77,7 +78,8 @@ const createTables = async () => {
             FOREIGN KEY (carta4) REFERENCES Carta(id),
             FOREIGN KEY (carta5) REFERENCES Carta(id)
         )
-    `);
+    `); // il turno indica il numero del giocatore che deve giocare, corrisponde all'attributo ordine del giocatore
+        // il giro indica a quale giro di puntate si è (small e big blind compresi nel giro 1)
 
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Puntata (
@@ -339,7 +341,7 @@ const increment_table_hand = async(tavolo) => {
     await executeQuery(`
         UPDATE Tavolo
         SET n_mano = n_mano + 1
-        WHERE id = '${tavolo}'
+        WHERE id = ${tavolo}
     `);
 };
 
@@ -354,11 +356,14 @@ const check_ready = async(tavolo) => {
 
 /* MANO */
 
-const create_hand = async(tavolo,turno,tipo) => {
+//è salvata solo una mano per tavolo
+//si potrebbe aggiungere il numero di mano per salvarle tutte
+const create_hand = async(tavolo,giro,turno) => {
     await executeQuery(`
-        INSERT INTO Mano (tavolo,turno,tipo_turno)
-        VALUES (${tavolo},${turno},${tipo})
-    `);
+        INSERT INTO Mano (tavolo,giro,turno)
+        VALUES (${tavolo},1,2)
+    `); //giro = 1
+        //turno = 2 per lo small blind
 };
 
 const delete_hand = async(tavolo) => {
@@ -368,22 +373,28 @@ const delete_hand = async(tavolo) => {
     `);
 };
 
-const update_hand_turn = async(tavolo,turno,tipo) => {
+const update_hand_round = async(tavolo,giro) => {
     await executeQuery(`
         UPDATE Mano
-        SET turno = ${turno}, tipo_turno = ${tipo}
+        SET giro = ${giro}
         WHERE tavolo = ${tavolo}
     `);
 };
 
-const get_hand_turn = async(tavolo) => {
+const update_hand_turn = async(tavolo,turno) => {
     await executeQuery(`
-        SELECT turno,tipo_turno FROM Mano
+        UPDATE Mano
+        SET turno = ${turno}
         WHERE tavolo = ${tavolo}
     `);
 };
 
-
+const get_hand_turn_round = async(tavolo) => {
+    return await executeQuery(`
+        SELECT turno,giro FROM Mano
+        WHERE tavolo = ${tavolo}
+    `);
+};
 
 /* PUNTATA */
 
@@ -499,8 +510,9 @@ module.exports = {
 
     create_hand:create_hand,
     delete_hand:delete_hand,                                    //using tavolo
-    update_hand_turn:update_hand_turn,                          //using tavolo
-    get_hand_turn:get_hand_turn,                                //using tavolo
+    update_hand_round:update_hand_round,                        //using tavolo,giro
+    update_hand_turn:update_hand_turn,                          //using tavolo,turno
+    get_hand_turn_round:get_hand_turn_round,                    //using tavolo
 
     create_card: create_card,
     get_n_cards: get_n_cards,
