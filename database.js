@@ -48,12 +48,13 @@ const createTables = async () => {
             socket VARCHAR(255) NOT NULL,
             username VARCHAR(255) NOT NULL,
             tavolo INT,
-            ordine INT NOT NULL,
+            ordine INT,
             pronto BOOLEAN,
+            eliminato BOOLEAN,
             fiches INT,
             carta1 INT,
             carta2 INT,
-            PRIMARY KEY (socket),
+            PRIMARY KEY (socket,username),
             FOREIGN KEY (username) REFERENCES Utente(username) ON DELETE CASCADE,
             FOREIGN KEY (tavolo) REFERENCES Tavolo(id) ON DELETE CASCADE,
             FOREIGN KEY (carta1) REFERENCES Carta(id),
@@ -64,7 +65,7 @@ const createTables = async () => {
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Mano (
             tavolo INT PRIMARY KEY,
-            giro INT NOT NULL
+            giro INT NOT NULL,
             turno INT NOT NULL,
             carta1 INT,
             carta2 INT,
@@ -85,8 +86,9 @@ const createTables = async () => {
         CREATE TABLE IF NOT EXISTS Puntata (
             giocatore VARCHAR(255) NOT NULL, 
             mano INT NOT NULL,
+            giro INT NOT NULL,
             somma INT,
-            PRIMARY KEY (giocatore, mano),
+            PRIMARY KEY (giocatore, mano, giro),
             FOREIGN KEY (giocatore) REFERENCES Giocatore(socket) ON DELETE CASCADE,
             FOREIGN KEY (mano) REFERENCES Mano(tavolo) ON DELETE CASCADE
         )
@@ -153,15 +155,30 @@ const check_username = async(username) => {
 
 const create_player = async(socket,username) => {   //CREATE socket,username
     await executeQuery(`
-        INSERT INTO Giocatore (username, socket)
-        VALUES ('${username}','${socket}')
+        INSERT INTO Giocatore (username, socket, eliminato)
+        VALUES ('${username}','${socket}', False)
     `);
 };
+
+const create_placeholder = async(socket,tavolo,ordine,eliminato) => {
+    await executeQuery(`
+        INSERT INTO Giocatore (username,socket,tavolo,ordine,eliminato)
+        VALUES ('','${socket}',${tavolo},${ordine},${eliminato})
+    `);
+}
 
 const delete_player = async(socket) => {          //DELETE
     await executeQuery(`
         DELETE FROM Giocatore
         WHERE socket = '${socket}'
+            AND username != ''
+    `);
+};
+
+const delete_placeholders = async() => {          //DELETE
+    await executeQuery(`
+        DELETE FROM Giocatore
+        WHERE username = ''
     `);
 };
 
@@ -170,6 +187,7 @@ const update_ready = async(socket,pronto) => {      //UPDATE pronto ("True" o "F
         UPDATE Giocatore
         SET pronto = ${pronto}
         WHERE socket = '${socket}'
+            AND username != ''
     `);
 };
 
@@ -178,6 +196,7 @@ const update_player_table = async(socket, tavolo) => {      //UPDATE tavolo (INT
         UPDATE Giocatore
         SET tavolo = ${tavolo}
         WHERE socket = '${socket}'
+            AND username != ''
     `);
 };
 
@@ -186,6 +205,7 @@ const update_fiches = async(socket,fiches) => {              //UPDATE fiches (IN
         UPDATE Giocatore
         SET fiches = ${fiches}
         WHERE socket = '${socket}'
+            AND username != ''
     `);
 };
 
@@ -194,15 +214,26 @@ const update_player_order = async(socket,ordine) => {              //UPDATE ordi
         UPDATE Giocatore
         SET ordine = ${ordine}
         WHERE socket = '${socket}'
+            AND username != ''
     `);
 };
 
-const decrement_player_order = async(tavolo,ordine) => {         //UPDATE fiches (INT o "NULL")
+const update_player_order_by_order = async(tavolo,ordine1,ordine2) => {              //UPDATE ordine (INT o "NULL")
     await executeQuery(`
         UPDATE Giocatore
-        SET ordine = ordine - 1
-        WHERE tavolo = '${tavolo}'
-            AND ordine = '${ordine}'
+        SET ordine = ${ordine2}
+        WHERE tavolo = ${tavolo}
+            AND ordine = ${ordine1}
+            AND username != ''
+    `);
+};
+
+const update_eliminated = async(socket,eliminato) => {              //UPDATE eliminato ("True" o "False")
+    await executeQuery(`
+        UPDATE Giocatore
+        SET eliminato = ${eliminato}
+        WHERE socket = '${socket}'
+            AND username != ''
     `);
 };
 
@@ -210,6 +241,7 @@ const get_username = async(socket) => {
     return await executeQuery(`
         SELECT username FROM Giocatore
         WHERE socket = '${socket}'
+            AND username != ''
     `);
 };
 
@@ -220,20 +252,46 @@ const get_socket = async(username) => {
     `);
 };
 
-const get_player_order = async(socket) => {
+const get_player_by_order = async(tavolo,ordine) => {
     return await executeQuery(`
-        SELECT ordine FROM Giocatore
-        WHERE socket = ${socket}
-    `);
-};
-
-const get_player_by_order = async(tavolo, ordine) => {
-    return await executeQuery(`
-        SELECT socket FROM Giocatore
+        SELECT socket,pronto,fiches,eliminato FROM Giocatore
         WHERE tavolo = ${tavolo}
             AND ordine = ${ordine}
     `);
 };
+
+const get_player = async(socket) => {
+    return await executeQuery(`
+        SELECT pronto,ordine,fiches,eliminato FROM Giocatore
+        WHERE socket = ${socket}
+            AND username != ''
+    `);
+};
+
+const get_players_by_table = async(tavolo) => {
+    return await executeQuery(`
+        SELECT socket,pronto,ordine,fiches,eliminato FROM Giocatore
+        WHERE tavolo = ${tavolo}
+    `);
+};
+
+const get_orders_in_hand = async(tavolo) => {
+    return await executeQuery(`
+        SELECT ordine FROM Giocatore
+        WHERE tavolo = ${tavolo}
+            AND eliminato = False
+        ORDER BY ordine
+    `);
+};
+
+const get_orders = async(tavolo) => {
+    return await executeQuery(`
+        SELECT ordine FROM Giocatore
+        WHERE tavolo = ${tavolo}
+        ORDER BY ordine
+    `);
+};
+
 
 
 /* INVITO */
@@ -349,6 +407,7 @@ const check_ready = async(tavolo) => {
     return await executeQuery(`
         SELECT pronto FROM Giocatore
         WHERE tavolo = ${tavolo}
+            AND eliminato = False
     `);
 };
 
@@ -398,16 +457,36 @@ const get_hand_turn_round = async(tavolo) => {
 
 /* PUNTATA */
 
-const create_bet = async(socket, tavolo) => {
+const create_bet = async(socket, tavolo, giro) => {
     await executeQuery(`
-        INSERT INTO PUNTATA (giocatore, mano, somma)
-        VALUES ('${socket}',${tavolo},0)
+        INSERT INTO PUNTATA (giocatore, mano, giro, somma)
+        VALUES ('${socket}',${tavolo},${giro},0)
     `);
 };
 
-const add_to_bet = async(username, tavolo, somma) => {
+const add_to_bet = async(socket,tavolo,giro,somma) => {
     await executeQuery(`
-        
+        UPDATE Puntata
+        SET somma = somma + ${somma}
+        WHERE giocatore = '${socket}'
+            AND mano = ${tavolo}
+            AND giro = ${giro}
+    `);
+};
+
+const get_bet = async(socket,tavolo,giro) => {
+    return await executeQuery(`
+        SELECT * FROM Puntata
+        WHERE giocatore = '${socket}'
+            AND mano = ${tavolo}
+            AND giro = ${giro}
+    `);
+};
+
+const get_hand_bets_sum = async(tavolo) => {
+    return await executeQuery(`
+        SELECT SUM(somma) FROM Puntata
+        WHERE mano = ${tavolo}
     `);
 };
 
@@ -436,6 +515,7 @@ const update_player_cards = async(socket,carte) => {
         UPDATE Giocatore
         SET carta1 = ${carte[0]}, carta2 = ${carte[1]}
         WHERE socket = '${socket}'
+            AND username != ''
     `);
 };
 
@@ -445,8 +525,10 @@ const get_player_card = async(socket,n) => {
         FROM Carta, Giocatore
         WHERE Giocatore.carta${n} = Carta.id
             AND Giocatore.socket = ${socket}
+            AND Giocatore.username != ''
     `);
 };
+
 
 
 const update_hand_cards = async(tavolo,carte) => {
@@ -468,6 +550,14 @@ const get_hand_card = async(tavolo,n) => {
     `);
 };
 
+const delete_all_player_cards = async(tavolo) => {
+    await executeQuery(`
+        UPDATE Giocatore
+        SET carta1 = NULL, carta2 = NULL
+        WHERE tavolo = ${tavolo}
+    `);
+};
+
 
 
 module.exports = {
@@ -484,11 +574,18 @@ module.exports = {
     update_player_table: update_player_table,                   //using socket
     update_fiches:update_fiches,                                //using socket
     update_player_order:update_player_order,                    //using socket
-    decrement_player_order:decrement_player_order,              //using tavolo,ordine
+    update_player_order_by_order:update_player_order_by_order,  //using tavolo,ordine
+    update_eliminated:update_eliminated,                        //using socket
     get_username: get_username,     //get username              //using socket
     get_socket: get_socket,         //get socket                //using username
-    get_player_order: get_player_order,                         //using socket
     get_player_by_order:get_player_by_order,                    //using tavolo,ordine
+    get_player: get_player,                                     //using socket
+    get_players_by_table:get_players_by_table,                  //using tavolo
+    get_orders_in_hand:get_orders_in_hand,                      //using tavolo
+    get_orders:get_orders,                                      //using tavolo
+
+    create_placeholder:create_placeholder,                      //using socket,tavolo,ordine,eliminato
+    delete_placeholders:delete_placeholders,                    //using
 
     create_invite: create_invite,   //CREATE giocatore1-2       //using socket       
     delete_invite: delete_invite,                               //using socket
@@ -514,11 +611,17 @@ module.exports = {
     update_hand_turn:update_hand_turn,                          //using tavolo,turno
     get_hand_turn_round:get_hand_turn_round,                    //using tavolo
 
+    create_bet:create_bet,                                      //using socket,tavolo,giro
+    add_to_bet:add_to_bet,                                      //using socket,tavolo,giro
+    get_bet:get_bet,                                            //using socket,tavolo,giro
+    get_hand_bets_sum:get_hand_bets_sum,                        //using tavolo
+
     create_card: create_card,
     get_n_cards: get_n_cards,
     update_player_cards:update_player_cards,                    //using socket
     get_player_card:get_player_card,                            //using socket
     update_hand_cards:update_hand_cards,                        //using tavolo
     get_hand_card:get_hand_card,                                //using tavolo
+    delete_all_player_cards:delete_all_player_cards,            //using tavolo
   };
   
