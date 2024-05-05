@@ -179,6 +179,14 @@ const update_player_table = async(socket, tavolo) => {      //UPDATE tavolo (INT
     `);
 };
 
+const update_fiches = async(socket,fiches) => {              //UPDATE fiches (INT o "NULL")
+    await executeQuery(`
+        UPDATE Giocatore
+        SET fiches = ${fiches}
+        WHERE socket = '${socket}'
+    `);
+};
+
 const update_player_order = async(socket,ordine) => {              //UPDATE ordine (INT o "NULL")
     await executeQuery(`
         UPDATE Giocatore
@@ -187,11 +195,12 @@ const update_player_order = async(socket,ordine) => {              //UPDATE ordi
     `);
 };
 
-const update_fiches = async(socket,fiches) => {              //UPDATE fiches (INT o "NULL")
+const decrement_player_order = async(tavolo,ordine) => {         //UPDATE fiches (INT o "NULL")
     await executeQuery(`
         UPDATE Giocatore
-        SET fiches = ${fiches}
-        WHERE socket = '${socket}'
+        SET ordine = ordine - 1
+        WHERE tavolo = '${tavolo}'
+            AND ordine = '${ordine}'
     `);
 };
 
@@ -326,7 +335,7 @@ const delete_table = async(tavolo) => {
     `);
 };
 
-const increment_table_mano = async(tavolo) => {
+const increment_table_hand = async(tavolo) => {
     await executeQuery(`
         UPDATE Tavolo
         SET n_mano = n_mano + 1
@@ -462,8 +471,9 @@ module.exports = {
     delete_player: delete_player,                               //using socket
     update_ready: update_ready,                                 //using socket     
     update_player_table: update_player_table,                   //using socket
-    update_player_order:update_player_order,                    //using socket
     update_fiches:update_fiches,                                //using socket
+    update_player_order:update_player_order,                    //using socket
+    decrement_player_order:decrement_player_order,              //using tavolo,ordine
     get_username: get_username,     //get username              //using socket
     get_socket: get_socket,         //get socket                //using username
     get_player_order: get_player_order,                         //using socket
@@ -484,7 +494,7 @@ module.exports = {
 
     create_table: create_table,     //CREATE n_mano, piccolo_buio
     delete_table: delete_table,                                 //using tavolo                 
-    increment_table_mano:increment_table_mano,                  //using tavolo
+    increment_table_hand:increment_table_hand,                  //using tavolo
     check_ready: check_ready,       //check if every1 is ready  //using tavolo
 
     create_hand:create_hand,

@@ -128,12 +128,12 @@ const get_players = async(tavolo) => {
 };
 
 const get_hand = async(tavolo) => {
-    //tavolo information: dealer/n_mano,small blind=n_mano*0.5, turno
+    //tavolo information: dealer/n_mano, turno(il primo turno è del 2* giocatore, lo small blind), small blind fiches = n_mano*0.5
     //hand information: somma puntate, carte
     return {};
 };
 
-const get_cards = async(tavolo) => {
+const get_cards = async(socket) => {
     //se si sono superati le fasi prima
     return {};
 };
@@ -150,7 +150,7 @@ const get_move = async(tavolo) => {
 const start_hand = async(tavolo) => {
     await db.delete_invites_table(tavolo);  //delete all invites to table
     const sockets = await io.in(tavolo).fetchSockets(); //get all sockets in table
-    await db.create_hand(tavolo,1,"small blind");    //create mano
+    await db.create_hand(tavolo,2,"small blind");    //create mano
 
     const carte = await db.get_n_cards((sockets.length*2)+5);   //carte
     await db.update_hand_cards(tavolo,carte.splice(0,5));
@@ -163,7 +163,7 @@ const start_hand = async(tavolo) => {
     io.to(tavolo).emit("start hand",get_hand(tavolo));
     io.to(room).emit("players",get_players(room));
 
-    io.to((await db.get_player_by_order(tavolo,1))[0]).emit("turn","small blind");
+    io.to((await db.get_player_by_order(tavolo,2))[0]).emit("turn","small blind");  //inizia il 2* giocatore, lo small blind
 };
 
 const end_hand = async(tavolo) => {
@@ -174,7 +174,19 @@ const end_hand = async(tavolo) => {
     sockets.forEach(async(socket) => { 
         await db.update_player_cards(socket.id,"NULL","NULL");   //delete player cards
     });
-    await db.increment_table_mano(tavolo);      //update n_mano del tavolo
+    await db.increment_table_hand(tavolo);      //update n_mano del tavolo
+};
+
+const scala_ordine = async (tavolo,ordine) => {
+    for (let i=ordine+1; i<(await io.in(tavolo).fetchSockets()).length+2; i++) {        //si scala l'ordine
+        await db.decrement_player_order(tavolo,i);
+    };
+    
+    const turno = (await db.get_hand_turn(tavolo))[0];
+    if (ordine == turno.turno) {
+        io.to((await db.get_player_by_order(tavolo,ordine))).emit("turn",turno.tipo_turno);   // resend turno allo stesso ordine
+    };
+    io.to(tavolo).emit("players",get_players(tavolo));
 };
 
 
@@ -189,7 +201,7 @@ const end_hand = async(tavolo) => {
     "hand"          manda le informazioni generali della mano: piatto, dealer, small blind, turno, carte presenti
     "turn"          dice al client che è il suo turno e dice il tipo di turno: small blind...
     "move"          manda le informazioni della mossa fatta
-    "end hand"      dice al client che la mano è finita
+    "end hand"      manda il vincitore dice al client che la mano è finita
 */
 
 const io = new Server(server);
@@ -212,13 +224,7 @@ io.of("/").adapter.on("leave-room", async (room, socket_id) => {
     if ((await io.in(room).fetchSockets()).length === 0) {
         await db.delete_table(room);
     } else {
-        // change all ordine
-        const turno = (await db.get_hand_turn(room))[0]
-        if (ordine == turno.turno) {
-            io.to((await db.get_player_by_order(room,ordine))).emit("turn",turno.tipo_turno);
-            // resend turn allo stesso ordine, get_player_by_order
-        };
-        io.to(room).emit("players",get_players(room));
+        await scala_ordine(room,ordine);
     };
 });
 
@@ -359,23 +365,35 @@ io.on("connection", (socket) => {
 
 
     socket.on("move", async (m) => {
-        //tipo? allin raise call
+        //tipo? allin raise call fold small blind big blind
         //update/create puntata
         //update fiches
-        //await end_hand(tavolo)
-        //fold o perso: togli l'ordine
-        //io.to(socket.rooms[0]).emit("move",);
-        //io.to(socket.rooms[0]).emit("hand",);
+        //fold o perso
+            //togli l'ordine,scala_ordine(socket.rooms[0],(await db.get_player_order(socket.id))[0])
+        //io.to(socket.rooms[0]).emit("move",{tipo,puntata,});
 
-        //check if tutti hanno puntato
-            //check if ultima fase
-            //prossima fase
-
-        //prendi ordine
-        //select ordine = $ordine+1 o 1 (ordine ciclico)
-        //update_hand_turn(socket.rooms[0],turno,tipo) 
-        //turn sarebbe il numero(ordine) del giocatore che deve giocare
-        //io.to(socket).emit("turn","chi sei");
+        //check if tutti hanno puntato o non hanno abbastanza (all in) o non hanno order
+            //check if ultima fase or all in
+                // guarda chi è ancora in gioco(chi è in ordine e controlla se è l'unico in gioco)
+                    /////controllo unico in gioco
+                    //if all in
+                        //aggiunge a get_hand le nuove carte
+                        //io.to(socket.rooms[0]).emit("hand",);
+                    //calcolo vincitore,tra le sockets con ordine
+                    //await end_hand(tavolo,ordine_vincitore)
+            //else
+                //prossima fase
+                //aggiunge a get_hand le nuove carte
+                //turno = 2(small blind, perchè 1 è dealer)
+        //else
+            //prendi ordine
+            //select ordine = $ordine+1 o 1 (ordine ciclico)
+            // per il tipo, controllare small e big blind
+            //update_hand_turn(socket.rooms[0],turno,tipo) 
+            //turno sarebbe il numero(ordine) del giocatore che deve giocare
+        //if nessuna vincita
+            //io.to(socket.rooms[0]).emit("hand",);
+            //io.to(socket).emit("turn","chi sei");
     });
 
 
