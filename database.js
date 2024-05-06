@@ -126,16 +126,16 @@ const select_last_insert_id = async () => {
 const login = async(username, password) => {
     // check nel database delle credenziali
     // ritorna 0 o 1
-    return await executeQuery(`
-        SELECT * FROM Utente
+    return (await executeQuery(`
+        SELECT COUNT(*) FROM Utente
         WHERE username = '${username}'
         AND password = '${password}'
-    `).length;
+    `)).length;
 };
 
 const signup = async(username, password) => {
     await executeQuery(`
-        INSERT INTO Utente (username, password)
+        INSERT IGNORE INTO Utente (username, password)
         VALUES ('${username}','${password}')
     `);
 };
@@ -143,10 +143,10 @@ const signup = async(username, password) => {
 const check_username = async(username) => {
     // check nel database dello username
     // ritorna 0 o 1
-    return await executeQuery(`
-        SELECT * FROM Utente
+    return (await executeQuery(`
+        SELECT COUNT(*) FROM Utente
         WHERE username = '${username}'
-    `).length;
+    `)).length;
 };
 
 
@@ -155,14 +155,14 @@ const check_username = async(username) => {
 
 const create_player = async(socket,username) => {   //CREATE socket,username
     await executeQuery(`
-        INSERT INTO Giocatore (username, socket, eliminato)
+        INSERT IGNORE INTO Giocatore (username, socket, eliminato)
         VALUES ('${username}','${socket}', False)
     `);
 };
 
 const create_placeholder = async(socket,tavolo,ordine,eliminato) => {
     await executeQuery(`
-        INSERT INTO Giocatore (username,socket,tavolo,ordine,eliminato)
+        INSERT IGNORE INTO Giocatore (username,socket,tavolo,ordine,eliminato)
         VALUES ('','${socket}',${tavolo},${ordine},${eliminato})
     `);
 }
@@ -175,10 +175,11 @@ const delete_player = async(socket) => {          //DELETE
     `);
 };
 
-const delete_placeholders = async() => {          //DELETE
+const delete_placeholders = async(tavolo) => {          //DELETE
     await executeQuery(`
         DELETE FROM Giocatore
         WHERE username = ''
+            AND tavolo = ${tavolo}
     `);
 };
 
@@ -234,6 +235,21 @@ const update_eliminated = async(socket,eliminato) => {              //UPDATE eli
         SET eliminato = ${eliminato}
         WHERE socket = '${socket}'
             AND username != ''
+    `);
+};
+
+const revisit_elimated = async(tavolo) => {                 //UPDATE eliminato ("True" o "False")
+    await executeQuery(`
+        UPDATE Giocatore
+        SET eliminato = True
+        WHERE tavolo = ${tavolo}
+            AND fiches <= 0
+    `);
+    await executeQuery(`
+        UPDATE Giocatore
+        SET eliminato = False
+        WHERE tavolo = ${tavolo}
+            AND fiches > 0
     `);
 };
 
@@ -293,13 +309,13 @@ const get_orders = async(tavolo) => {
 };
 
 const check_fiches = async(socket,fiches) => {
-    // check nel database delle fiches
+    // check nel database delle fiches del giocatore
     // ritorna 0 o 1
-    return await executeQuery(`
-        SELECT fiches FROM Giocatore
+    return (await executeQuery(`
+        SELECT COUNT(*) FROM Giocatore
         WHERE socket = '${socket}'
             AND fiches >= ${fiches}
-    `).length;
+    `)).length;
 };
 
 
@@ -308,7 +324,7 @@ const check_fiches = async(socket,fiches) => {
 
 const create_invite = async(socket1,socket2,tavolo) => {
     await executeQuery(`
-        INSERT INTO Invito (giocatore1,giocatore2,tavolo)
+        INSERT IGNORE INTO Invito (giocatore1,giocatore2,tavolo)
         VALUES ('${socket1}','${socket2}',${tavolo})
     `);
 };
@@ -349,7 +365,7 @@ const get_invites = async(socket) => {
 
 const create_request = async(username1,username2) => {
     await executeQuery(`
-        INSERT INTO Amicizia (utente1, utente2, accettata)
+        INSERT IGNORE INTO Amicizia (utente1, utente2, accettata)
         VALUES ('${username1}','${username2}', False)
     `);
 };
@@ -381,12 +397,11 @@ const get_requests = async(username) => {
 
 const get_friendships = async(username) => {
     return await executeQuery(`
-        SELECT * FROM Amicizia
+        SELECT utente1,utente2 FROM Amicizia
         WHERE accettata = True
             AND (utente1 = '${username}' OR utente2 = '${username}')
-    `);//includere stato utente attraverso socket
+    `);
 };
-
 
 
 /* TAVOLO */
@@ -429,7 +444,7 @@ const check_ready = async(tavolo) => {
 //si potrebbe aggiungere il numero di mano per salvarle tutte
 const create_hand = async(tavolo,giro,turno) => {
     await executeQuery(`
-        INSERT INTO Mano (tavolo,giro,turno)
+        INSERT IGNORE INTO Mano (tavolo,giro,turno)
         VALUES (${tavolo},1,2)
     `); //giro = 1
         //turno = 2 per lo small blind
@@ -467,11 +482,11 @@ const get_hand_turn_round = async(tavolo) => {
 
 /* PUNTATA */
 
-const create_bet = async(socket, tavolo, giro,somma) => {
+const create_bet = async(socket, tavolo, giro, somma) => {
     await executeQuery(`
         INSERT INTO PUNTATA (giocatore, mano, giro, somma)
         VALUES ('${socket}',${tavolo},${giro},${somma})
-    `);
+    `); //non IGNORE per controllare se esiste la puntata
 };
 
 const add_to_bet = async(socket,tavolo,giro,somma) => {
@@ -493,12 +508,26 @@ const get_bet = async(socket,tavolo,giro) => {
     `);
 };
 
-const get_hand_bets_sum = async(tavolo) => {
+const get_bets_sum = async(tavolo) => {
     return await executeQuery(`
         SELECT SUM(somma) FROM Puntata
         WHERE mano = ${tavolo}
     `);
 };
+
+const check_bets = async(tavolo,giro) => {
+    // check dei giocatori che devono ancora puntare
+    // ritorna il numero dei giocatori
+    return (await executeQuery(`
+        SELECT COUNT(Giocatore.socket) FROM Puntata, Giocatore
+        WHERE Puntata.giocatore = Giocatore.socket
+            AND Puntata.mano = ${tavolo}
+            AND Puntato.giro = ${giro}
+            AND Giocatore.eliminato = False
+            AND Puntata.somma < (SELECT MAX(somma) FROM Puntata WHERE giro = ${giro} AND Puntata.mano = ${tavolo}) 
+            AND Giocatore.fiches > 0
+    `)).length;  //controllo se la puntata del giocatore in un giro è minore di quella massima del giro
+};              //non conto chi è in all-in(fiches<0)
 
 
 
@@ -506,7 +535,7 @@ const get_hand_bets_sum = async(tavolo) => {
 
 const create_card = async(valore,seme,path) => {
     await executeQuery(`
-        INSERT INTO Carta (valore,seme,path)
+        INSERT IGNORE INTO Carta (valore,seme,path)
         VALUES (${valore},${seme},'${path}')
     `);
 };
@@ -570,13 +599,36 @@ const delete_all_player_cards = async(tavolo) => {
 
 
 
+
+
+
+const get_card = async(id) => {
+    return await executeQuery(`
+        SELECT Carta.id
+        FROM Carta
+        WHERE Carta.id = ${id}
+    `);
+};
+
+const count_cards = async() => {
+    return (await executeQuery(`
+        SELECT COUNT(*)
+        FROM Carta
+    `)).length;
+};
+
+
+
+
 module.exports = {
+    get_card:get_card,
+    count_cards:count_cards,
     executeQuery: executeQuery,
     createTables: createTables,
 
-    login: login,
+    login: login,                                                                                   //length
     signup: signup,
-    check_username: check_username, //might not need it
+    check_username: check_username,                                                                 //length
 
     create_player: create_player,   //CREATE socket, username
     delete_player: delete_player,                               //using socket
@@ -586,6 +638,7 @@ module.exports = {
     update_player_order:update_player_order,                    //using socket
     update_player_order_by_order:update_player_order_by_order,  //using tavolo,ordine
     update_eliminated:update_eliminated,                        //using socket
+    revisit_elimated:revisit_elimated,                          //using tavolo
     get_username: get_username,     //get username              //using socket
     get_socket: get_socket,         //get socket                //using username
     get_player_by_order:get_player_by_order,                    //using tavolo,ordine
@@ -593,10 +646,10 @@ module.exports = {
     get_players_by_table:get_players_by_table,                  //using tavolo
     get_players_in_hand:get_players_in_hand,                    //using tavolo
     get_orders:get_orders,                                      //using tavolo
-    check_fiches:check_fiches,                                  //using socket,fiches
+    check_fiches:check_fiches,                                  //using socket,fiches               //length
 
     create_placeholder:create_placeholder,                      //using socket,tavolo,ordine,eliminato
-    delete_placeholders:delete_placeholders,                    //using
+    delete_placeholders:delete_placeholders,                    //using tavolo
 
     create_invite: create_invite,   //CREATE giocatore1-2       //using socket       
     delete_invite: delete_invite,                               //using socket
@@ -625,7 +678,8 @@ module.exports = {
     create_bet:create_bet,                                      //using socket,tavolo,giro
     add_to_bet:add_to_bet,                                      //using socket,tavolo,giro
     get_bet:get_bet,                                            //using socket,tavolo,giro
-    get_hand_bets_sum:get_hand_bets_sum,                        //using tavolo
+    get_bets_sum:get_bets_sum,                                  //using tavolo
+    check_bets:check_bets,                                      //using tavolo,giro                 //length
 
     create_card: create_card,
     get_n_cards: get_n_cards,
