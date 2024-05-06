@@ -73,25 +73,6 @@ app.post("/create_table", async(req, res) => {
     };
 });
 
-const logout = async (socket_id) => {
-    const player = (await db.get_username(socket_id))[0];
-    const friends_list = await get_friends(player.username);
-
-    await db.delete_player(socket_id);
-
-    friends_list.forEach(async(friend) => {
-        if (friend.socket) {
-            io.to(friend.socket).emit("friends",await get_friends(friend.username));
-        };
-    });
-
-    const invited_list = await get_invites(socket_id);        
-    invited_list.forEach(async(invited) => {
-        if (invited.socket) {
-            io.to(invited.socket).emit("invite",await get_invites(invited.socket));
-        };
-    });
-}
 
 
 
@@ -204,7 +185,25 @@ const end_hand = async(tavolo,vincitori) => {
     io.to(tavolo).emit("players",await get_players(tavolo));
 };
 
+const logout = async (socket_id) => {
+    const player = (await db.get_username(socket_id))[0];
+    const friends_list = await get_friends(player.username);
 
+    await db.delete_player(socket_id);
+
+    friends_list.forEach(async(friend) => {
+        if (friend.socket) {
+            io.to(friend.socket).emit("friends",await get_friends(friend.username));
+        };
+    });
+
+    const invited_list = await get_invites(socket_id);        
+    invited_list.forEach(async(invited) => {
+        if (invited.socket) {
+            io.to(invited.socket).emit("invite",await get_invites(invited.socket));
+        };
+    });
+}
 
 /* DESCRIZIONE MESSAGGI CHE MANDA IL SERVER
     "request"       manda tutte le richieste di amicizia mandate o ricevute dal client
