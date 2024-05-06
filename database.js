@@ -529,6 +529,17 @@ const check_bets = async(tavolo,giro) => {
     `)).length;  //controllo se la puntata del giocatore in un giro è minore di quella massima del giro
 };              //non conto chi è in all-in(fiches<0)
 
+const check_allin = async(tavolo) => {
+    // check che qualcuno abbia fatto all in
+    // ritorna il numero di giocatori
+    return (await executeQuery(`
+        SELECT COUNT(*) FROM Giocatore
+        WHERE tavolo = ${tavolo}
+            AND eliminato = False
+            AND fiches <= 0
+    `)).length;
+};
+
 
 
 /* CARTE */
@@ -680,6 +691,7 @@ module.exports = {
     get_bet:get_bet,                                            //using socket,tavolo,giro
     get_bets_sum:get_bets_sum,                                  //using tavolo
     check_bets:check_bets,                                      //using tavolo,giro                 //length
+    check_allin:check_allin,                                    //using tavolo                      //length
 
     create_card: create_card,
     get_n_cards: get_n_cards,

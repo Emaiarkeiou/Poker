@@ -133,7 +133,7 @@ const get_hand = async(tavolo,giro,turno) => {
                         //turno(il primo turno è del 2* giocatore, lo small blind), 
                         //giro
                         //small blind fiches = n_mano*0.5
-    //hand information: //puntate, //carte
+    //hand information: //puntate del giro, somma totale di tutte le puntate non del giro, //carte
     //get_hand_cards(giro)
     return {};
 };
@@ -161,7 +161,9 @@ const scala_ordine = async(tavolo) => {
     };
 };
 
+const calculate_winners = async(tavolo) => {
 
+};
 
 
 const start_hand = async(tavolo) => {
@@ -404,11 +406,12 @@ io.on("connection", (socket) => {
             small-blind
             big-blind
         */
-        const giro = m.giro;
-        const turno = m.turno;
+        const giro = parseInt(m.giro);
+        let turno = parseInt(m.turno);
         const tipo = m.tipo;
-        const fiches_puntate = m.somma;
+        const fiches_puntate = parseInt(m.somma);
         const tavolo = socket.rooms[0];
+
         if (["check","call","raise","all-in","small-blind","big-blind","fold"].includes(tipo)) { //tipo? check allin raise call fold small blind big blind
             if (await db.check_fiches(socket.id,fiches_puntate)) {              //check che il giocatore abbia abbastanza fiches
                 await db.update_fiches(socket.id,"fiches - "+fiches_puntate);   //update delle fiches del giocatore
@@ -426,27 +429,26 @@ io.on("connection", (socket) => {
 
         const in_gioco = await db.get_players_in_hand(tavolo);      //lista dei giocatori ancora in gioco {socket,ordine,fiches}
         
-        if (!(await db.check_bets(tavolo,giro))) {
-
-        }
-        //check if tutti non eliminati hanno puntato o non hanno abbastanza (all in)
-            //check if ultimo giro(4) or all in
-                // guarda chi è ancora in gioco( controlla se è l'unico in gioco)
-                    //if unico in gioco
-                        //await end_hand(tavolo,ordine_vincitore)
-                    //else if all in
-                        //aggiunge a get_hand le nuove carte, cambiando il giro a 4
-                        //io.to(tavolo).emit("hand",await get_hand(tavolo, giro, turno));
+        if (!(await db.check_bets(tavolo,giro))) {              //check if tutti non eliminati hanno puntato o non hanno abbastanza (all in)
+            if (giro==4 || await db.check_allin(tavolo)) {          //check if ultimo giro(4) or all in
+                if (in_gioco.length === 1) {                            //if unico in gioco
+                    await end_hand(tavolo,in_gioco[0].ordine);              //await end_hand(tavolo,ordine_vincitore)
+                } else {
+                    if (await db.check_allin(tavolo)) {                                 //else if all in
+                        io.to(tavolo).emit("hand",await get_hand(tavolo, 4, turno));        //aggiunge a hand le nuove carte, cambiando il giro a 4
+                    };
                     //calcolo vincitore,tra le sockets in gioco
-                    //await end_hand(tavolo,ordine_vincitore)
-            //else
-                //prossimo giro
-                //update hand round (giro+1)
-                //turno = 2(small blind, perchè 1 è dealer)
-        //else
-            //lista di tutti i giocatori non eliminati
-            //update_hand_turn(socket.rooms[0],turno) //turno+1 posizione o 1 (ordine ciclico) 
-            //turno sarebbe indice dell'elemento della lista di chi è ancora in gioco
+                    //await end_hand(tavolo,ordine_vincitori)
+                };
+            } else {
+                await db.update_hand_round(tavolo,giro+1);      //prossimo giro
+                await db.update_hand_turn(tavolo,2);            //turno = 2(small blind, perchè 1 è dealer)     
+            };
+        } else {
+            turno = turno == in_gioco.length ? 1 : turno+1;   //se l'indice è l'ultimo, ritorna al primo, altrimenti aumenta di 1
+            await db.update_hand_turn(tavolo,turno);        //turno => indice+1 dell'elemento della lista di chi è ancora in gioco
+        };
+
         if (giro < 4) {
             if (tipo === "big-blind") {
                 in_gioco.forEach(async(player) => {
@@ -454,7 +456,7 @@ io.on("connection", (socket) => {
                 });
             };
             io.to(tavolo).emit("hand",await get_hand(tavolo, giro, turno));
-            io.to(in_gioco[turno].socket).emit("turn",{turno:turno,giro:giro});
+            io.to(in_gioco[turno-1].socket).emit("turn",{turno:turno,giro:giro});       //manda turno e giro per conferma
         };
     });
 
@@ -468,7 +470,6 @@ io.on("connection", (socket) => {
 
     socket.on("disconnect", async () => {
         io.in(socket.id).socketsLeave(socket.rooms[0]); 
-        //await 
         await logout(socket.id);                                //player
     });
 });
