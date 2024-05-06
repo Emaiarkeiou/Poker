@@ -275,9 +275,9 @@ const get_players_by_table = async(tavolo) => {
     `);
 };
 
-const get_orders_in_hand = async(tavolo) => {
+const get_players_in_hand = async(tavolo) => {
     return await executeQuery(`
-        SELECT ordine FROM Giocatore
+        SELECT socket,ordine,fiches FROM Giocatore
         WHERE tavolo = ${tavolo}
             AND eliminato = False
         ORDER BY ordine
@@ -286,10 +286,20 @@ const get_orders_in_hand = async(tavolo) => {
 
 const get_orders = async(tavolo) => {
     return await executeQuery(`
-        SELECT ordine FROM Giocatore
+        SELECT socket,ordine FROM Giocatore
         WHERE tavolo = ${tavolo}
         ORDER BY ordine
     `);
+};
+
+const check_fiches = async(socket,fiches) => {
+    // check nel database delle fiches
+    // ritorna 0 o 1
+    return await executeQuery(`
+        SELECT fiches FROM Giocatore
+        WHERE socket = '${socket}'
+            AND fiches >= ${fiches}
+    `).length;
 };
 
 
@@ -457,10 +467,10 @@ const get_hand_turn_round = async(tavolo) => {
 
 /* PUNTATA */
 
-const create_bet = async(socket, tavolo, giro) => {
+const create_bet = async(socket, tavolo, giro,somma) => {
     await executeQuery(`
         INSERT INTO PUNTATA (giocatore, mano, giro, somma)
-        VALUES ('${socket}',${tavolo},${giro},0)
+        VALUES ('${socket}',${tavolo},${giro},${somma})
     `);
 };
 
@@ -581,8 +591,9 @@ module.exports = {
     get_player_by_order:get_player_by_order,                    //using tavolo,ordine
     get_player: get_player,                                     //using socket
     get_players_by_table:get_players_by_table,                  //using tavolo
-    get_orders_in_hand:get_orders_in_hand,                      //using tavolo
+    get_players_in_hand:get_players_in_hand,                    //using tavolo
     get_orders:get_orders,                                      //using tavolo
+    check_fiches:check_fiches,                                  //using socket,fiches
 
     create_placeholder:create_placeholder,                      //using socket,tavolo,ordine,eliminato
     delete_placeholders:delete_placeholders,                    //using

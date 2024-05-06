@@ -25,7 +25,9 @@ app.use(
         extended: true,
     }),
 );
+
 app.use("/", express.static(path.join(__dirname, "")));
+app.use("/cards", express.static(path.join(__dirname, "assets/cards")));
 
 const server = http.createServer(app);
 
@@ -215,7 +217,7 @@ const end_hand = async(tavolo,vincitori) => {
     "your cards"    manda le carte del client con id e immagine
     "hand"          manda le informazioni generali della mano: piatto, dealer, small blind, turno, giro, carte presenti
     "turn"          dice al client che è il suo turno e manda il turno per verificare
-    "move"          manda le informazioni della mossa fatta
+    "move"          manda le informazioni della mossa fatta: tipo e puntata
     "all cards"     manda tutte le carte dei giocatori in gioco
     "end hand"      manda il vincitore e dice al client che la mano è finita
 */
@@ -396,19 +398,27 @@ io.on("connection", (socket) => {
             call: chiamare
             raise: rilanciare
             fold: lasciare
-            small blind
-            big blind
+            all-in
+            small-blind
+            big-blind
         */
-        //m.giro, m.turno, m.tipo, m.somma
-        //tipo? allin raise call fold small blind big blind
-        //update/create puntata
-        //check if theres enough fiches
-        //update fiches
-        //fold
-            //update eliminato
-        //io.to(socket.rooms[0]).emit("move",{tipo,puntata,});
-        
-        //get_orders_in_hand (lista degli ordini ancora in gioco)
+        const giro = m.giro;
+        const turno = m.turno;
+        const tipo = m.tipo;
+        const fiches_puntate = m.somma;
+        const tavolo = socket.rooms[0];
+        if (["check","call","raise","all-in","small-blind","big-blind","fold"].includes(tipo)) { //tipo? check allin raise call fold small blind big blind
+            if (await db.check_fiches(socket.id,fiches_puntate)) {
+                await db.create_bet(socket.id,tavolo,giro,fiches_puntate).then().catch((e)=> {db.add_to_bet(socket.id,tavolo,giro,fiches_puntate)});
+            };
+        };
+        if (tipo==="fold") {
+            await db.update_eliminated(socket.id,"True");
+        };
+        io.to(tavolo).emit("move",{tipo:tipo,puntata:await get_bet(socket.id,tavolo,giro)});
+
+        const in_gioco = await db.get_players_in_hand(tavolo);      //lista dei giocatori ancora in gioco
+
         //check if tutti non eliminati hanno puntato o non hanno abbastanza (all in)
             //check if ultimo giro(4) or all in
                 // guarda chi è ancora in gioco( controlla se è l'unico in gioco)
@@ -417,7 +427,7 @@ io.on("connection", (socket) => {
                     //else if all in
                         //aggiunge a get_hand le nuove carte, cambiando il giro a 4
                         //io.to(socket.rooms[0]).emit("hand",);
-                    //calcolo vincitore,tra le sockets con ordine
+                    //calcolo vincitore,tra le sockets in gioco
                     //await end_hand(tavolo,ordine_vincitore)
             //else
                 //prossimo giro
@@ -427,13 +437,15 @@ io.on("connection", (socket) => {
             //lista di tutti i giocatori non eliminati
             //update_hand_turn(socket.rooms[0],turno) //turno+1 posizione o 1 (ordine ciclico) 
             //turno sarebbe indice dell'elemento della lista di chi è ancora in gioco
-
-        //if giro < 4?
-            //check if big blind
-                //emit your cards
-            //io.to(socket.rooms[0]).emit("hand",await get_hand(socket.rooms0,giro, turno));
-            //get_player_by_order(get_orders_in_hand[turno])
-            //io.to(player.socket).emit("turn",{turno:,giro:});
+        if (giro < 4) {
+            if (tipo === "big-blind") {
+                in_gioco.forEach(async(player) => {
+                    io.to(player.socket).emit("your cards",await get_player_cards(player.socket));
+                });
+            };
+            io.to(tavolo).emit("hand",await get_hand(tavolo, giro, turno));
+            io.to(in_gioco[turno].socket).emit("turn",{turno:turno,giro:giro});
+        };
     });
 
 
