@@ -279,7 +279,7 @@ const get_player_by_order = async(tavolo,ordine) => {
 const get_player = async(socket) => {
     return (await executeQuery(`
         SELECT pronto,ordine,fiches,eliminato FROM Giocatore
-        WHERE socket = ${socket}
+        WHERE socket = '${socket}'
             AND username != ''
     `))[0];
 };
@@ -348,7 +348,7 @@ const delete_invites_table = async(tavolo) => {
 const delete_invites_player = async(socket) => {
     await executeQuery(`
         DELETE FROM Invito
-        WHERE giocatore1 = ${socket}
+        WHERE giocatore1 = '${socket}'
     `);
 };
 
@@ -602,7 +602,7 @@ const get_player_card = async(socket,n) => {
         SELECT Carta.id, Carta.valore, Carta.seme, Carta.path
         FROM Carta, Giocatore
         WHERE Giocatore.carta${n} = Carta.id
-            AND Giocatore.socket = ${socket}
+            AND Giocatore.socket = '${socket}'
             AND Giocatore.username != ''
     `))[0];
 };
@@ -619,7 +619,7 @@ const get_all_players_cards = async(socket) => {
         SELECT Carta.id, Carta.valore, Carta.seme, Carta.path
         FROM Carta, Giocatore
         WHERE Giocatore.carta${n} = Carta.id
-            AND Giocatore.socket = ${socket}
+            AND Giocatore.socket = '${socket}'
             AND Giocatore.username != ''
     `);
 };

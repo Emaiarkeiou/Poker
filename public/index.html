@@ -1,54 +1,79 @@
 <!doctype html>
 <html>
   <head>
+    <title>Poker</title>
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
     />
+    <link rel="icon" href="/cards/logo.png">
+    <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
   </head>
   <body>
-    <div class="container p-4">
-      <div id="div_nome" class="d-block d-flex justify-content-center">
-        <div class="col-3 row mt-4">
-          <h1 class="mb-4 text-center">CHAT</h1>
-          <div class="p-0 mb-4 form-floating">
-            <input
-              type="text"
-              class="form-control"
-              id="in_user"
-              placeholder="Username"
-            />
-            <label for="in_user">Username</label>
-          </div>
-          <button id="joinButton" type="button" class="mb-4 btn btn-success">
-            Join chat
-          </button>
-        </div>
+    <nav class="navbar navbar-expand-sm text-light shadow navbar-expand fixed-top" style="height: 6.5vh;">
+      <div class="d-flex justify-content-start align-items-center ">
+        <img src="/cards/logo.png" alt="" class="img-fluid py-1 mx-3" style="height: 5vh;">
+        <h1 class="py-1 m-0">TEXAS HOLD 'EM</h1>
       </div>
-
-      <div id="div_chat" class="d-none d-flex justify-content-center">
-        <div class="col-8">
-          <ul id="chat" class="list-group">
-            <li class="list-group-item">ciao</li>
-            <li class="list-group-item">ciao</li>
-          </ul>
-          <div class="row my-4">
-            <div class="input-group mb-3">
-              <input id="input" type="text" class="form-control" />
-              <div class="input-group-append">
-                <button
-                  id="sendButton"
-                  class="px-3 btn btn-success"
-                  type="button"
-                >
-                  Send
-                </button>
-              </div>
+    </nav>
+    <div class="d-flex container justify-content-center align-items-center p-4 min-vh-100">
+      <div class="d-flex row m-0 col-12" style="height: 80vh;">
+        <div class="d-flex align-items-center justify-content-center col-7 tavolo h-100">
+          <img class="img-fluid rounded shadow" src="/cards/logo-stretto.png" alt="Logo">
+        </div>
+        <div class="d-flex align-items-center justify-content-center col-5 h-100 bg-white shadow">
+          
+          <div class="d-block col-8 rounded p-4 pb-3" id="div_login">
+            <div class="row text-center">
+              <h1>LOGIN</h1>
+            </div>
+            <div class="form-floating mt-3">
+              <input type="text" name="username" maxlength="30" placeholder="" class="form-control text-lowercase" id="inUserLogin">
+              <label for="inUserLogin">Nome utente</label>
+            </div>
+            <div class="form-floating mt-3">
+              <input type="password" name="password" maxlength="30" placeholder="" class="form-control" id="inPassLogin">
+              <label for="inPassLogin">Password</label>
+            </div>
+            <div class="mt-2 px-2">
+              <p class="text-start m-0 p-0 text-danger w-100"> &nbsp;</p>
+            </div>
+            <div class="mt-2">
+              <button type="button" class="btn btn-primary py-2 btn-block w-100 h-100"><b>Accedi</b></button>
+            </div>
+            <div class="mt-2 px-2">
+              <p class="text-end m-0 p-0 w-100">Non hai un account? <button id="switchLogin" type="button" class="btn btn-link p-0 pb-1">Registrati</button>
             </div>
           </div>
+
+          <div class="d-none col-8 rounded p-4 pb-3" id="div_signup">
+            <div class="row text-center">
+              <h1>SIGN UP</h1>
+            </div>
+            <div class="form-floating mt-3">
+              <input type="text" name="username" maxlength="30" placeholder="" class="form-control text-lowercase" id="inUserSignup">
+              <label for="inUserSignup">Nome utente</label>
+            </div>
+            <div class="form-floating mt-3">
+              <input type="password" name="password" maxlength="30" placeholder="" class="form-control" id="inPassSignup">
+              <label for="inPassSignup">Password</label>
+            </div>
+            <div class="mt-2 px-2">
+              <p class="text-start m-0 p-0 text-danger w-100"> &nbsp;</p>
+            </div>
+            <div class="mt-2">
+              <button type="button" class="btn btn-primary py-2 btn-block w-100 h-100"><b>Iscriviti</b></button>
+            </div>
+            <div class="mt-2 px-2">
+              <p class="text-end m-0 p-0 w-100">Hai già un account? <button id="switchSignup" type="button" class="btn btn-link p-0 pb-1">Accedi</button>
+            </div>
+          </div>
+
+          
+
         </div>
       </div>
     </div>

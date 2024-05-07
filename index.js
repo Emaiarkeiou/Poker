@@ -15,17 +15,16 @@ const init = async () => {
 }
 init();
 
-
 const prova = async() => {
     const a = await db.get_card(2)
     const b = (await db.get_card(2)).length
     console.log(b)
     console.log(a[0].id)
     console.log(await db.login("awd","aw"))
-    console.log(await db.count_cards())
     console.log((await io.in("room").fetchSockets()))
 };
 prova()
+
 
 
 const STARTING_FICHES = 250;
@@ -110,7 +109,7 @@ const get_players = async(tavolo) => {
 };
 
 const get_hand = async(tavolo,giro,turno) => {
-    //tavolo information: dealer/n_mano, 
+    //tavolo information: dealer/n_mano, //gestire chi parte prima, turno
                         //turno(il primo turno è del 2* giocatore, lo small blind), 
                         //giro
                         //small blind fiches = n_mano*0.5
@@ -222,24 +221,26 @@ const end_hand = async(tavolo,vincitori) => {
 };
 
 const logout = async (socket_id) => {
-    const player = await db.get_username(socket_id);
-    const friends_list = await get_friends(player.username);
+    try {
+        const player = await db.get_username(socket_id);
+        const friends_list = await get_friends(player.username);
 
-    await db.delete_player(socket_id);
+        await db.delete_player(socket_id);
 
-    friends_list.forEach(async(friend) => {
-        if (friend.socket) {
-            io.to(friend.socket).emit("friends",await get_friends(friend.username));
-        };
-    });
+        friends_list.forEach(async(friend) => {
+            if (friend.socket) {
+                io.to(friend.socket).emit("friends",await get_friends(friend.username));
+            };
+        });
 
-    const invited_list = await get_invites(socket_id);        
-    invited_list.forEach(async(invited) => {
-        if (invited.socket) {
-            io.to(invited.socket).emit("invite",await get_invites(invited.socket));
-        };
-    });
-}
+        const invited_list = await get_invites(socket_id);        
+        invited_list.forEach(async(invited) => {
+            if (invited.socket) {
+                io.to(invited.socket).emit("invite",await get_invites(invited.socket));
+            };
+        });
+    } catch {};
+};
 
 /* DESCRIZIONE MESSAGGI CHE MANDA IL SERVER
     "request"       manda tutte le richieste di amicizia mandate o ricevute dal client
@@ -259,32 +260,38 @@ const logout = async (socket_id) => {
 const io = new Server(server);
 
 io.of("/").adapter.on("join-room", async (room, socket_id) => {
-    await db.update_player_order(socket_id,((await io.in(room).fetchSockets()).length))
-    await db.update_fiches(socket_id,STARTING_FICHES)
-    io.to(room).emit("players",await get_players(room));
+    if (room != socket_id) {
+        console.log("join "+room)
+        await db.update_player_order(socket_id,((await io.in(room).fetchSockets()).length))
+        await db.update_fiches(socket_id,STARTING_FICHES)
+        io.to(room).emit("players",await get_players(room));
+    };
 });
 
 io.of("/").adapter.on("leave-room", async (room, socket_id) => {
-    const player = await db.get_player(socket_id);
-    const turno = await db.get_hand_turn_round(tavolo);
-    if (turno.giro) {        //se si è in una mano, crea un placeholder
-        await db.create_placeholder(socket_id,room,player.ordine,"True");       //socket,tavolo,ordine,eliminato
-        await db.update_player_cards(socket_id,"NULL","NULL");   //carte
-    } else {
-        await scala_ordine(room);
-    };
+    if (room != socket_id) {
+        console.log("left "+room)
+        const player = await db.get_player(socket_id);
+        const turno = await db.get_hand_turn_round(room);
+        if (turno.giro) {        //se si è in una mano, crea un placeholder
+            await db.create_placeholder(socket_id,room,player.ordine,"True");       //socket,tavolo,ordine,eliminato
+            await db.update_player_cards(socket_id,"NULL","NULL");   //carte
+        } else {
+            await scala_ordine(room);
+        };
 
-    await db.update_player_table(socket_id,"NULL");         //tavolo
-    await db.update_ready(socket_id,"False");               //pronto
-    await db.update_eliminated(socket_id,"False");          //eliminato
-    await db.update_fiches(socket_id,"NULL");               //fiches
-    await db.update_player_order(socket_id,"NULL");         //ordine
+        await db.update_player_table(socket_id,"NULL");         //tavolo
+        await db.update_ready(socket_id,"False");               //pronto
+        await db.update_eliminated(socket_id,"False");          //eliminato
+        await db.update_fiches(socket_id,"NULL");               //fiches
+        await db.update_player_order(socket_id,"NULL");         //ordine
 
-    if ((await io.in(room).fetchSockets()).length === 0) {
-        await db.delete_table(room);
-    } else {
-        await db.delete_invites_player(socket_id);              //inviti
-        io.to(tavolo).emit("players",await get_players(tavolo));
+        if ((await io.in(room).fetchSockets()).length === 0) {
+            await db.delete_table(room);
+        } else {
+            await db.delete_invites_player(socket_id);              //inviti
+            io.to(tavolo).emit("players",await get_players(tavolo));
+        };
     };
 });
 
@@ -504,7 +511,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("disconnect", async () => {
-        io.in(socket.id).socketsLeave(socket.rooms[0]); 
+        io.in(socket.id).socketsLeave(socket.rooms[0]);         
         await logout(socket.id);                                //player
     });
 });

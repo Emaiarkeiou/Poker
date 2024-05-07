@@ -1,0 +1,16 @@
+body {
+    background: radial-gradient(45% 45% at 50% 50%,#0a1711,#030806);
+    background-attachment: fixed;
+}
+
+.navbar {
+    background: rgba(18,53,36,0.25);
+}
+
+.tavolo {
+    background: linear-gradient(#2a6c65, #28625b) padding-box,
+              linear-gradient( #7d425e, #723e57) border-box;
+    border-radius: 1em 0 0 1em;
+    border: 1em solid transparent;
+    border-right: 0;
+}
