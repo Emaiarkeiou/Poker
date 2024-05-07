@@ -42,7 +42,7 @@ app.use("/cards", express.static(path.join(__dirname, "assets/cards")));
 const server = http.createServer(app);
 
 app.post("/login", async(req, res) => {
-    if (await db.login(req.headers.username,req.headers.password)) {
+    if (await db.login(req.body.username,req.body.password)) {
         res.json({ result: "ok" });
     } else {
         res.status(401); //401 è il codice unauthorized
@@ -52,10 +52,11 @@ app.post("/login", async(req, res) => {
 
 app.post("/signup", async(req, res) => {
     if (await db.check_username(req.body.username)) {
+        res.status(406); //not acceptable
+        res.json({ result: "username taken" });
+    } else {
         await db.signup(req.body.username, req.body.password);
         res.json({ result: "ok" });
-    } else {
-        res.json({ result: "username taken" });
     }
 });
 

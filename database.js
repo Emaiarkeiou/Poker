@@ -127,7 +127,7 @@ const login = async(username, password) => {
     // check nel database delle credenziali
     // ritorna 0 o 1
     return (await executeQuery(`
-        SELECT COUNT(*) FROM Utente
+        SELECT username FROM Utente
         WHERE username = '${username}'
         AND password = '${password}'
     `)).length;
@@ -144,7 +144,7 @@ const check_username = async(username) => {
     // check nel database dello username
     // ritorna 0 o 1
     return (await executeQuery(`
-        SELECT COUNT(*) FROM Utente
+        SELECT username FROM Utente
         WHERE username = '${username}'
     `)).length;
 };
@@ -313,7 +313,7 @@ const check_fiches = async(socket,fiches) => {
     // check nel database delle fiches del giocatore
     // ritorna 0 o 1
     return (await executeQuery(`
-        SELECT COUNT(*) FROM Giocatore
+        SELECT socket FROM Giocatore
         WHERE socket = '${socket}'
             AND fiches >= ${fiches}
     `)).length;
@@ -520,7 +520,7 @@ const check_bets = async(tavolo,giro) => {
     // check dei giocatori che devono ancora puntare
     // ritorna il numero dei giocatori
     return (await executeQuery(`
-        SELECT COUNT(Giocatore.socket) FROM Puntata, Giocatore
+        SELECT Giocatore.socket FROM Puntata, Giocatore
         WHERE Puntata.giocatore = Giocatore.socket
             AND Puntata.mano = ${tavolo}
             AND Puntato.giro = ${giro}
@@ -534,7 +534,7 @@ const check_allin = async(tavolo) => {
     // check che qualcuno abbia fatto all in
     // ritorna il numero di giocatori
     return (await executeQuery(`
-        SELECT COUNT(*) FROM Giocatore
+        SELECT username FROM Giocatore
         WHERE tavolo = ${tavolo}
             AND eliminato = False
             AND fiches <= 0
