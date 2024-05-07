@@ -288,6 +288,7 @@ const get_players_by_table = async(tavolo) => {
     return await executeQuery(`
         SELECT socket,pronto,ordine,fiches,eliminato FROM Giocatore
         WHERE tavolo = ${tavolo}
+            AND username != ''
     `);
 };
 
@@ -569,18 +570,6 @@ const update_player_cards = async(socket,carte) => {
     `);
 };
 
-const get_player_card = async(socket,n) => {
-    return await executeQuery(`
-        SELECT Carta.id, Carta.path
-        FROM Carta, Giocatore
-        WHERE Giocatore.carta${n} = Carta.id
-            AND Giocatore.socket = ${socket}
-            AND Giocatore.username != ''
-    `);
-};
-
-
-
 const update_hand_cards = async(tavolo,carte) => {
     await executeQuery(`
         UPDATE Mano
@@ -588,15 +577,6 @@ const update_hand_cards = async(tavolo,carte) => {
             carta3 = ${carte[2]}, carta4 = ${carte[3]}, 
             carta5 = ${carte[4]}
         WHERE tavolo = ${tavolo}
-    `);
-};
-
-const get_hand_card = async(tavolo,n) => {
-    return await executeQuery(`
-        SELECT Carta.id, Carta.path
-        FROM Carta, Mano
-        WHERE Mano.carta${n} = Carta.id
-            AND Mano.tavolo = ${tavolo}
     `);
 };
 
@@ -610,30 +590,35 @@ const delete_all_player_cards = async(tavolo) => {
 
 
 
-
-
+const get_player_card = async(socket,n) => {
+    return await executeQuery(`
+        SELECT Carta.id, Carta.valore, Carta.seme, Carta.path
+        FROM Carta, Giocatore
+        WHERE Giocatore.carta${n} = Carta.id
+            AND Giocatore.socket = ${socket}
+            AND Giocatore.username != ''
+    `);
+};
 
 const get_card = async(id) => {
     return await executeQuery(`
-        SELECT Carta.id
-        FROM Carta
+        SELECT * FROM Carta
         WHERE Carta.id = ${id}
     `);
 };
 
-const count_cards = async() => {
-    return (await executeQuery(`
-        SELECT COUNT(*)
-        FROM Carta
-    `)).length;
+const get_all_players_cards = async(socket) => {
+    return await executeQuery(`
+        SELECT Carta.id, Carta.valore, Carta.seme, Carta.path
+        FROM Carta, Giocatore
+        WHERE Giocatore.carta${n} = Carta.id
+            AND Giocatore.socket = ${socket}
+            AND Giocatore.username != ''
+    `);
 };
 
 
-
-
 module.exports = {
-    get_card:get_card,
-    count_cards:count_cards,
     executeQuery: executeQuery,
     createTables: createTables,
 
@@ -696,9 +681,10 @@ module.exports = {
     create_card: create_card,
     get_n_cards: get_n_cards,
     update_player_cards:update_player_cards,                    //using socket
-    get_player_card:get_player_card,                            //using socket
     update_hand_cards:update_hand_cards,                        //using tavolo
     get_hand_card:get_hand_card,                                //using tavolo
     delete_all_player_cards:delete_all_player_cards,            //using tavolo
+    get_card:get_card,                                          //using n
+    get_player_card:get_player_card,                            //using socket,n
   };
   

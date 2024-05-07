@@ -125,14 +125,37 @@ const get_hand_cards = async(tavolo,giro) => {
 };
 
 const get_player_cards = async(socket) => {
-    //restituisce le carte del giocatore
-    return {};
+    //restituisce le carte del giocatore [{id,valore,seme,path} x2]
+    return [await db.get_player_card(socket,1),await db.get_player_card(socket,2)];
+};
+
+const calcola_punti = async(tavolo,carte) => {
+
+};
+
+const calcola_vincitori = async(tavolo,players) => {
+    let punti = [], vincitori = [];
+    players.forEach(async(player) => {
+        punti.push(await calcola_punti(tavolo,await db.get_player_card(player.socket)));    //push del punteggio del giocatore
+    });
+    let max = Math.max(...punti);
+    let indici = punti.reduce((r, v, i) => r.concat(v === max ? i : []), []);       //lista indici di chi ha i punti massimi
+    indici.forEach((i) => {
+        vincitori.push(players[i].ordine);      //push dell'ordine
+    })
+    return vincitori;
 };
 
 const get_players_cards = async(tavolo) => {
-    //restituisce le carte e ordine dei giocatori non eliminati del tavolo
-    return {};
+    let all_cards = [];
+    (await db.get_players_by_table(tavolo)).forEach(async(player) => {
+        let carte = await get_player_cards(player.socket);
+        all_cards[player.ordine] = carte;
+    });
+    return all_cards;      //{ordine : [ {id,valore,seme,path} , {id,valore,seme,path} ], x n}
 };
+
+
 
 const scala_ordine = async(tavolo) => {
     const lunghezza = (await io.in(room).fetchSockets()).length;
@@ -142,9 +165,7 @@ const scala_ordine = async(tavolo) => {
     };
 };
 
-const calculate_winners = async(tavolo) => {
 
-};
 
 
 const start_hand = async(tavolo) => {
@@ -436,8 +457,8 @@ io.on("connection", (socket) => {
                     if (await db.check_allin(tavolo)) {                                 //else if all in
                         io.to(tavolo).emit("hand",await get_hand(tavolo, 4, turno));        //aggiunge a hand le nuove carte, cambiando il giro a 4
                     };
-                    //calcolo vincitore,tra le sockets in gioco
-                    //await end_hand(tavolo,ordine_vincitori)
+                    let vincitori = await calcola_vincitori(tavolo,in_gioco);       //calcolo vincitore,tra le sockets in gioco ,restituisce l'ordine dei vincitori
+                    await end_hand(tavolo,vincitori);    //await end_hand(tavolo,ordine_vincitori)
                 };
             } else {
                 await db.update_hand_round(tavolo,giro+1);      //prossimo giro
