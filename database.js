@@ -254,34 +254,34 @@ const revisit_elimated = async(tavolo) => {                 //UPDATE eliminato (
 };
 
 const get_username = async(socket) => {
-    return await executeQuery(`
+    return (await executeQuery(`
         SELECT username FROM Giocatore
         WHERE socket = '${socket}'
             AND username != ''
-    `);
+    `))[0].username;
 };
 
 const get_socket = async(username) => {
-    return await executeQuery(`
+    return (await executeQuery(`
         SELECT socket FROM Giocatore
         WHERE username = '${username}'
-    `);
+    `))[0].socket;
 };
 
 const get_player_by_order = async(tavolo,ordine) => {
-    return await executeQuery(`
+    return (await executeQuery(`
         SELECT socket,pronto,fiches,eliminato FROM Giocatore
         WHERE tavolo = ${tavolo}
             AND ordine = ${ordine}
-    `);
+    `))[0];
 };
 
 const get_player = async(socket) => {
-    return await executeQuery(`
+    return (await executeQuery(`
         SELECT pronto,ordine,fiches,eliminato FROM Giocatore
         WHERE socket = ${socket}
             AND username != ''
-    `);
+    `))[0];
 };
 
 const get_players_by_table = async(tavolo) => {
@@ -475,10 +475,10 @@ const update_hand_turn = async(tavolo,turno) => {
 };
 
 const get_hand_turn_round = async(tavolo) => {
-    return await executeQuery(`
+    return (await executeQuery(`
         SELECT turno,giro FROM Mano
         WHERE tavolo = ${tavolo}
-    `);
+    `))[0];
 };
 
 /* PUNTATA */
@@ -588,16 +588,23 @@ const delete_all_player_cards = async(tavolo) => {
     `);
 };
 
-
+const get_hand_card = async(tavolo,n) => {
+    return (await executeQuery(`
+        SELECT Carta.id, Carta.valore, Carta.seme, Carta.path
+        FROM Carta, Mano
+        WHERE Mano.tavolo = ${tavolo}
+            AND Mano.carta${n} = Carta.id
+    `))[0];
+};
 
 const get_player_card = async(socket,n) => {
-    return await executeQuery(`
+    return (await executeQuery(`
         SELECT Carta.id, Carta.valore, Carta.seme, Carta.path
         FROM Carta, Giocatore
         WHERE Giocatore.carta${n} = Carta.id
             AND Giocatore.socket = ${socket}
             AND Giocatore.username != ''
-    `);
+    `))[0];
 };
 
 const get_card = async(id) => {

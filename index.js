@@ -63,7 +63,7 @@ app.post("/signup", async(req, res) => {
 app.post("/create_table", async(req, res) => {
     if (await db.login(req.headers.username,req.headers.password)) {
         const tavolo = await db.create_table(req.headers.username);
-        const player = (await db.get_socket(req.headers.username))[0];
+        const player = await db.get_socket(req.headers.username);
         await update_player_table(player.socket, tavolo);
         io.in(player.socket).socketsJoin(tavolo);
         res.json({ result: "ok" });
@@ -121,7 +121,19 @@ const get_hand = async(tavolo,giro,turno) => {
 
 const get_hand_cards = async(tavolo,giro) => {
     //in base al giro fa vedere n carte
-    return {};
+    let carte = [];
+    if (giro >= 2) {
+        carte.push(await db.get_hand_card(tavolo,1))
+        carte.push(await db.get_hand_card(tavolo,2))
+        carte.push(await db.get_hand_card(tavolo,3))
+        if (giro >= 3) {
+            carte.push(await db.get_hand_card(tavolo,4))
+            if (giro == 4) {
+                carte.push(await db.get_hand_card(tavolo,5))
+            };
+        };
+    };
+    return carte;
 };
 
 const get_player_cards = async(socket) => {
@@ -130,13 +142,16 @@ const get_player_cards = async(socket) => {
 };
 
 const calcola_punti = async(tavolo,carte) => {
-
+    for (let i = 1; i<6 ; i++) {
+        carte.push(await db.get_hand_card(tavolo,i))
+    };
+    return 1;
 };
 
 const calcola_vincitori = async(tavolo,players) => {
     let punti = [], vincitori = [];
     players.forEach(async(player) => {
-        punti.push(await calcola_punti(tavolo,await db.get_player_card(player.socket)));    //push del punteggio del giocatore
+        punti.push(await calcola_punti(tavolo,await get_player_cards(player.socket)));    //push del punteggio del giocatore
     });
     let max = Math.max(...punti);
     let indici = punti.reduce((r, v, i) => r.concat(v === max ? i : []), []);       //lista indici di chi ha i punti massimi
@@ -185,7 +200,7 @@ const start_hand = async(tavolo) => {
     io.to(tavolo).emit("start hand",await get_hand(tavolo,1,2));
     io.to(room).emit("players",await get_players(room));
 
-    io.to((await db.get_player_by_order(tavolo,2))[0].socket).emit("turn",{giro:1,turno:2});  //inizia il giocatore 2 del giro 1, lo small blind
+    io.to((await db.get_player_by_order(tavolo,2)).socket).emit("turn",{giro:1,turno:2});  //inizia il giocatore 2 del giro 1, lo small blind
 };
 
 const end_hand = async(tavolo,vincitori) => {
@@ -193,7 +208,7 @@ const end_hand = async(tavolo,vincitori) => {
     io.to(tavolo).emit("end hand",{vincitori:vincitori});
     vincitori.forEach(async (vincitore)=> { //vincitore = ordine del player
         let somma = (await db.get_bets_sum(tavolo))[0]["SUM(somma)"];
-        let player = (await db.get_player_by_order(tavolo,vincitore))[0];
+        let player = await db.get_player_by_order(tavolo,vincitore);
         await db.update_fiches(player.socket, "fiches + " + Math.floor(somma/vincitori.length))
     });
     await db.delete_hand(tavolo);               //delete mano
@@ -207,7 +222,7 @@ const end_hand = async(tavolo,vincitori) => {
 };
 
 const logout = async (socket_id) => {
-    const player = (await db.get_username(socket_id))[0];
+    const player = await db.get_username(socket_id);
     const friends_list = await get_friends(player.username);
 
     await db.delete_player(socket_id);
@@ -250,8 +265,8 @@ io.of("/").adapter.on("join-room", async (room, socket_id) => {
 });
 
 io.of("/").adapter.on("leave-room", async (room, socket_id) => {
-    const player = (await db.get_player(socket_id))[0];
-    const turno = (await db.get_hand_turn_round(tavolo))[0];
+    const player = await db.get_player(socket_id);
+    const turno = await db.get_hand_turn_round(tavolo);
     if (turno.giro) {        //se si è in una mano, crea un placeholder
         await db.create_placeholder(socket_id,room,player.ordine,"True");       //socket,tavolo,ordine,eliminato
         await db.update_player_cards(socket_id,"NULL","NULL");   //carte
@@ -313,7 +328,7 @@ io.on("connection", (socket) => {
     socket.on("invite", async (m) => {
         //si può invitare anche quando non si è alla prima mano?si
         const username2 = m.username;
-        const socket2 = (await db.get_socket(username2))[0].socket;
+        const socket2 = await db.get_socket(username2);
 
         await db.create_invite(socket.id,socket2,socket.rooms[0]);
             
@@ -323,7 +338,7 @@ io.on("connection", (socket) => {
 
     socket.on("accept_invite", async (m) => {
         const username1 = m.username;
-        const socket1 = (await db.get_socket(username1))[0].socket;
+        const socket1 = await db.get_socket(username1);
     
         await db.delete_invite(socket1,socket.id);
         await update_player_table(socket.id, socket.rooms[0]);
@@ -335,7 +350,7 @@ io.on("connection", (socket) => {
 
     socket.on("reject_invite", async (m) => {
         const username1 = m.username;
-        const socket1 = (await db.get_socket(username1))[0].socket;
+        const socket1 = await db.get_socket(username1);
 
         await db.delete_invite(socket1,socket.id);
 
@@ -349,9 +364,9 @@ io.on("connection", (socket) => {
 
     socket.on("request", async (m) => {
         //questo quando cerca un username, mettere try catch
-        const username1 = (await db.get_username(socket.id))[0].username;
+        const username1 = await db.get_username(socket.id);
         const username2 = m.username;
-        const socket2 = (await db.get_socket(username2))[0].socket;
+        const socket2 = await db.get_socket(username2);
 
         await db.create_request(username1,username2);
             
@@ -361,8 +376,8 @@ io.on("connection", (socket) => {
 
     socket.on("accept_request", async (m) => {
         const username1 = m.username;
-        const username2 = (await db.get_username(socket.id))[0].username;
-        const socket1 = (await db.get_socket(username1))[0].socket;
+        const username2 = await db.get_username(socket.id);
+        const socket1 = await db.get_socket(username1);
         
         await db.accept_request(username1,username2);
 
@@ -374,8 +389,8 @@ io.on("connection", (socket) => {
 
     socket.on("reject_request", async (m) => {
         const username1 = m.username;
-        const username2 = (await db.get_username(socket.id))[0].username;
-        const socket1 = (await db.get_socket(username1))[0].socket;
+        const username2 = await db.get_username(socket.id);
+        const socket1 = await db.get_socket(username1);
 
         await db.delete_request(username1,username2);
 
@@ -385,8 +400,8 @@ io.on("connection", (socket) => {
 
     socket.on("remove_friendship", async (m) => {
         const usernamex = m.username;
-        const usernamey = (await db.get_username(socket.id))[0].username;
-        const socketx = (await db.get_socket(usernamex))[0].socket;
+        const usernamey = await db.get_username(socket.id);
+        const socketx = await db.get_socket(usernamex);
 
         await db.delete_friendship(usernamex,usernamey);
         await db.delete_friendship(usernamey,usernamex);
