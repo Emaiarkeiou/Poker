@@ -175,6 +175,12 @@ const delete_player = async(socket) => {          //DELETE
     `);
 };
 
+const delete_all_players = async() => {          //DELETE
+    await executeQuery(`
+        DELETE FROM Giocatore
+    `);
+};
+
 const delete_placeholders = async(tavolo) => {          //DELETE
     await executeQuery(`
         DELETE FROM Giocatore
@@ -258,14 +264,14 @@ const get_username = async(socket) => {
         SELECT username FROM Giocatore
         WHERE socket = '${socket}'
             AND username != ''
-    `))[0].username;
+    `));
 };
 
 const get_socket = async(username) => {
     return (await executeQuery(`
         SELECT socket FROM Giocatore
         WHERE username = '${username}'
-    `))[0].socket;
+    `));
 };
 
 const get_player_by_order = async(tavolo,ordine) => {
@@ -355,8 +361,8 @@ const delete_invites_player = async(socket) => {
 const get_invites = async(socket) => {
     return await executeQuery(`
         SELECT * FROM Invito
-        WHERE accettata = False
-            AND (giocatore1 = '${socket}' OR giocatore2 = '${socket}')
+        WHERE giocatore1 = '${socket}' 
+            OR giocatore2 = '${socket}'
     `);
 };
 
@@ -635,6 +641,7 @@ module.exports = {
 
     create_player: create_player,   //CREATE socket, username
     delete_player: delete_player,                               //using socket
+    delete_all_players:delete_all_players,
     update_ready: update_ready,                                 //using socket     
     update_player_table: update_player_table,                   //using socket
     update_fiches:update_fiches,                                //using socket

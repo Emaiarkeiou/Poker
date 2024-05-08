@@ -13,15 +13,54 @@
     <script src="/socket.io/socket.io.js"></script>
   </head>
   <body>
-    <nav class="navbar navbar-expand-sm text-light shadow navbar-expand fixed-top px-2" style="height: 8vh;">
+    <nav class="navbar navbar-expand-sm text-light navbar-expand fixed-top px-2" style="height: 8vh;">
       <div class="d-flex justify-content-start align-items-center ">
         <img src="/cards/logo.png" alt="" class="img-fluid py-1 mx-3" style="height: 6vh;">
-        <h1 class="py-1 m-0">TEXAS HOLD EM</h1>
+        <img src="/cards/logo-text.png" alt="" class="img-fluid py-2" style="height: 6vh;">
       </div>
     </nav>
     <div class="d-flex justify-content-center align-items-end min-vh-100">
-      <div class="d-flex col-9" style="height: 92vh;">wad</div>
-      <div id="div_friends" class="d-flex col-3" style="height: 92vh;">awd</div>
+      <div class="d-flex col-9" style="height: 92vh;">
+        <canvas id="tableCanvas" style="z-index:1">
+        </canvas>
+        <button type="button" class="btn btn-danger py-2 btn-block" style="z-index:2; position:absolute;" id="logout_b"><b>Logout</b></button>
+      </div>
+      <div id="div_friends" class="row col-3 m-0 p-0" style="height: 92vh;">
+
+        <div class=" p-4" style="height: 80vh;">
+          <div class="rounded w-100 h-100 overflow-auto">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item">An item</li>
+              <li class="list-group-item">A second item</li>
+              <li class="list-group-item">A third item</li>
+              <li class="list-group-item">A fourth item</li>
+              <li class="list-group-item">And a fifth one</li>
+              <li class="list-group-item">An item</li>
+              <li class="list-group-item">A second item</li>
+              <li class="list-group-item">A third item</li>
+              <li class="list-group-item">A fourth item</li>
+              <li class="list-group-item">And a fifth one</li>
+              <li class="list-group-item">An item</li>
+              <li class="list-group-item">A second item</li>
+              <li class="list-group-item">A third item</li>
+              <li class="list-group-item">A fourth item</li>
+              <li class="list-group-item">And a fifth one</li>
+            </ul>
+        </div>
+        </div>
+        <div class="px-4 m-0" style="height: 12vh;">
+          <div class="d-flex align-items-center py-4 border w-100 h-100">
+            <div class="col-12 input-group">
+              <input id="add_friend" type="text" class="form-control" maxlength="30" placeholder="Aggiungi amici" aria-label="Input group example" aria-describedby="basic-addon1">
+              <button id="add_friend_b" type="button" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                  <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <script src="game.js" type="module"></script>
   </body>

@@ -5,26 +5,29 @@ const setCookie = (name,value) => {
 };
 
 const deleteCookie = (name) => {   
-    document.cookie = name+'=; Max-Age=0;';  
+    document.cookie = name+'=; Max-Age=0';  
 };
 
 const getCookie = (name) => {
-    return document.cookie.split(';').some(c => {
-        return c.trim().startsWith(name + '=');
-    });
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
 };
 
 
 const setLogin = (username,password) => {
-    document.cookie = `username=${username};password=${password};`
+    document.cookie = `username=${username};`;
+    document.cookie = `password=${password};`;
 };
 
-const checkLogin = () => {
-    return login(getCookie("username"),getCookie("password"))
+const checkLogin = async () => {
+    console.log(getCookie("username"),getCookie("password"))
+    return await login(getCookie("username"),getCookie("password"));
 };
 
 const deleteLogin = () => {
     deleteCookie("username");
+    deleteCookie("password");
 }
 
 export { setCookie,deleteCookie,getCookie,setLogin,checkLogin,deleteLogin };

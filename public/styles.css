@@ -3,10 +3,6 @@ body {
     background-attachment: fixed;
 }
 
-.navbar {
-    background: rgba(18,53,36,0.25);
-}
-
 .tavolo {
     background: linear-gradient(#2a6c65, #28625b) padding-box,
               linear-gradient( #7d425e, #723e57) border-box;
@@ -15,6 +11,11 @@ body {
     border-right: 0;
 }
 
+
+.navbar {
+    background: rgba(40,98,91,0.2);
+}
+
 #div_friends {
-    background: linear-gradient(#2a6c65, #28625b) padding-box;
+    background: rgba(40,98,91,0.1);
 }

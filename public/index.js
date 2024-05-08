@@ -1,9 +1,10 @@
 import { login,signup } from "./registration.js";
 import {setLogin,checkLogin,deleteLogin} from "./cookies.js";
 
-if (checkLogin()) {
+if (await checkLogin()) {
 	window.location.href = "./game.html";
 };
+
 
 const div_login = document.getElementById("div_login");
 const div_signup = document.getElementById("div_signup");
@@ -61,31 +62,30 @@ login_b.onclick = async () => {
 };
 
 signup_b.onclick = async () => {
-	if (await signup(inUserSignup.value,inPassSignup.value)) {
-		errorSignup.innerHTML = "&nbsp;";
-		await login(inUserSignup.value,inPassSignup.value);
-		setLogin(inUserLogin.value,inPassLogin.value);
-		window.location.href = "./game.html";
+	if (inUserSignup.value && inPassSignup.value) {
+		if (inUserSignup.value.length >= 3) {
+			if (await signup(inUserSignup.value,inPassSignup.value)) {
+				await login(inUserSignup.value,inPassSignup.value);
+				errorSignup.innerHTML = "&nbsp;";
+				setLogin(inUserSignup.value,inPassSignup.value);
+				window.location.href = "./game.html";
+			} else {
+				errorSignup.innerText = inUserSignup.value + " esiste già";
+				inUserSignup.value = "", inPassSignup.value = "";
+			};
+		} else {
+			errorSignup.innerText = "Lunghezza minima username: 3";
+			inUserSignup.value = "";
+		};
 	} else {
-		errorSignup.innerText = inUserSignup.value + " esiste già";
-		inUserSignup.value = "", inPassSignup.value = "";
+		errorSignup.innerText = "Riempi tutti i campi";
 	};
+	
 };
 
-
-
-
-const socket = io();
-
-/*
-sendButton.onclick = () => {
-  	socket.emit("message", { name: username, message: input_mess.value });
-  	input_mess.value = "";
+window.onpageshow = (event) => {
+	if (event.persisted) {
+		console.log("log")
+	  	window.location.reload();
+	}
 };
-
-socket.on("chat", (message) => {
-  	console.log(message);
-  	messages.push(message);
-  	render();
-});
-*/
