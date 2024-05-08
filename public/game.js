@@ -1,5 +1,4 @@
-import { login,signup } from "./registration.js";
-import {getCookie,setLogin,checkLogin,deleteLogin} from "./cookies.js";
+import {getCookie,checkLogin,deleteLogin} from "./cookies.js";
 import {draw_lobby} from "./canvas.js";
 
 if (!(await checkLogin())) {
@@ -38,6 +37,7 @@ add_friend.onkeydown = (event) => {
 add_friend_b.onclick = async () => {
 	if (add_friend.value) {
 		socket.emit("request", { username: add_friend.value });
+		add_friend.value = "";
 	};
 };
 

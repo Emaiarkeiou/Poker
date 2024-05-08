@@ -19,3 +19,76 @@ body {
 #div_friends {
     background: rgba(40,98,91,0.1);
 }
+
+
+
+.separator {
+    border-top: 1px solid rgba(40,98,91,0.2);
+}
+.friend-container {
+    background: rgba(40,98,91,0.1);
+    border-radius: 10px;
+}
+
+.onlinefriend-li {
+    background-color: rgba(125,249,255,0.5);
+    border-radius: 6px;
+}
+
+.onlinefriend-li:hover {
+    background-color: rgba(127,255,212,0.6);
+    transform: scale(1.01);
+    -webkit-transition: background-color 1s, transform 0.1s;
+    -ms-transition: background-color 1s, transform 0.1s;
+    transition: background-color 1s, transform 0.1s ;
+}
+
+.friend-li {
+    background-color: rgba(40,98,91,0.3);
+    border-radius: 6px;
+}
+
+.friend-li:hover {
+    background-color: rgba(40,98,91,0.4);
+    transform: scale(1.01);
+    -webkit-transition: all 0.1s;
+    -ms-transition: all 0.1s;
+    transition: all 0.1s;
+}
+
+.friend-invite-b {
+    background: rgba(40,98,91,0.5);
+    border: none;
+}
+.friend-invite-b:hover {
+    background: rgba(40,98,91,0.9);
+}
+
+
+.remove-friend {
+    background: rgba(255,255,255,0);
+    border: none;
+}
+.remove-friend:hover {
+    color: #c9303f !important;
+}
+
+
+
+
+.separator {
+    border-top: 1px solid rgba(40,98,91,0.2);
+}
+
+#add_friend {
+    background: rgba(40,98,91,0.1);
+    border: none;
+}
+
+#add_friend_b {
+    background: #2a6c65;
+    border: none;
+}
+input::placeholder {
+    color: rgba(255,255,255,0.65) !important;
+}

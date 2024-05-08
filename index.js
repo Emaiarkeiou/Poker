@@ -519,16 +519,20 @@ server.listen(80, () => {
     console.log("server running on port: " + 80);
 });
 
+
+
+
 // listen for TERM signal .e.g. kill
 process.on ('SIGTERM', async () => {
     await db.delete_all_players();
 }); 
-/*
+
 // listen for INT signal e.g. Ctrl-C
 process.on ('SIGINT', async () => {
     await db.delete_all_players();
+    process.exit(0);
 }); 
-*/
+
 process.on('exit', async () => {
     await db.delete_all_players();
 }); 
