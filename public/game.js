@@ -1,8 +1,8 @@
 import { login,signup } from "./registration.js";
 import {setLogin,checkLogin,deleteLogin} from "./cookies.js";
 
-if (checkLogin()) {
-	window.location.href = "./game.html";
+if (!checkLogin()) {
+	window.location.href = "./index.html";
 };
 
 const div_login = document.getElementById("div_login");

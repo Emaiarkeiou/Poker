@@ -1,3 +1,5 @@
+import { login } from "./registration.js";
+
 const setCookie = (name,value) => {   
     document.cookie = name+'='+value;  
 };
@@ -13,12 +15,16 @@ const getCookie = (name) => {
 };
 
 
-const setLogin = () => {
-    document.cookie = "logged=true;"
+const setLogin = (username,password) => {
+    document.cookie = `username=${username};password=${password};`
 };
 
 const checkLogin = () => {
-    return getCookie("logged") ? true : false
+    return login(getCookie("username"),getCookie("password"))
 };
 
-export { setCookie,deleteCookie,getCookie,setLogin,checkLogin };
+const deleteLogin = () => {
+    deleteCookie("username");
+}
+
+export { setCookie,deleteCookie,getCookie,setLogin,checkLogin,deleteLogin };

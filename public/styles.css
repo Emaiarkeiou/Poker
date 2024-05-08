@@ -14,3 +14,7 @@ body {
     border: 1em solid transparent;
     border-right: 0;
 }
+
+#div_friends {
+    background: linear-gradient(#2a6c65, #28625b) padding-box;
+}
