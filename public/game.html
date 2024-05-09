@@ -23,6 +23,11 @@
       <div class="d-flex col-9" style="height: 92vh;">
         <canvas id="tableCanvas" style="z-index:1">
         </canvas>
+        <div class="d-flex col-9 justify-content-center align-items-center"style="height: 92vh;z-index:2; position:absolute;">
+          <div>
+            <button type="button" class="shadow btn btn-primary px-5 py-3" id="create_table_b"><b>Crea Tavolo</b></button>
+          </div>
+        </div>
         <button type="button" class="btn btn-danger py-2 btn-block" style="z-index:2; position:absolute;" id="logout_b"><b>Logout</b></button>
       </div>
       <div id="div_friends" class="row col-3 m-0 p-0" style="height: 92vh;">
@@ -31,43 +36,7 @@
         <div class="p-4 pb-0" style="height: 20vh;">
 
           <div class="friend-container w-100 h-100 overflow-auto">
-            <ul class="list-group row m-0 p-2 pt-0">
-
-              <li class="friend-li d-flex col-12 row m-0 mt-2 p-0">
-                <div class="d-flex justify-content-left align-items-center col-8 p-2 ps-3 m-0 overflow-hidden">
-                  <b>mirkomaralit</b>
-                </div>
-                <div class="d-flex justify-content-center align-items-center col-2 py-2 m-0">
-                  <button type="button" class="friend-invite-b m-0 p-0 px-2 btn text-light">
-                    Accetta
-                  </button>
-                </div>
-                <div class="d-flex justify-content-center col-2 py-2 m-0">
-                  <button type="button" class="remove-friend m-0 p-0 text-light">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
-                      <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
-                    </svg>
-                  </button>
-                </div>
-              </li>
-
-              <li class="friend-li d-flex col-12 row m-0 mt-2 p-0">
-                <div class="d-flex justify-content-left align-items-center col-8 p-2 ps-3 m-0 overflow-hidden">
-                  <b>mirkomaralit</b>
-                </div>
-                <div class="d-flex justify-content-center align-items-center col-2 py-2 m-0">
-                  <button type="button" class="friend-invite-b m-0 p-0 px-2 btn text-light" disabled>
-                    Mandata
-                  </button>
-                </div>
-                <div class="d-flex justify-content-center col-2 py-2 m-0">
-                  <button type="button" class="remove-friend m-0 p-0 text-light">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
-                      <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
-                    </svg>
-                  </button>
-                </div>
-              </li> 
+            <ul id="requests_ul" class="list-group row m-0 p-2 pt-0">
 
             </ul>
         </div>
@@ -77,40 +46,7 @@
         <div class="p-4" style="height: 60vh;">
           <div class="friend-container w-100 h-100 overflow-auto">
 
-            <ul class="list-group row m-0 p-2 pt-0">
-              <li class="onlinefriend-li d-flex col-12 row m-0 mt-2 p-0">
-                <div class="d-flex justify-content-left align-items-center col-8 p-3 m-0 overflow-hidden">
-                  <b>mirkomaralit</b>
-                </div>
-                <div class="d-flex justify-content-center align-items-center col-2 py-3 m-0">
-                  <button type="button" class="friend-invite-b m-0 p-0 px-2 btn text-light">
-                    Invita
-                  </button>
-                </div>
-                <div class="d-flex justify-content-center col-2 py-3 m-0">
-                  <button type="button" class="remove-friend m-0 p-0 text-light">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
-                      <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
-                    </svg>
-                  </button>
-                </div>
-              </li>
-
-              <li class="friend-li d-flex col-12 row m-0 mt-2 p-0">
-                <div class="d-flex justify-content-left align-items-center col-8 p-3 m-0 overflow-hidden">
-                  <b>mirkomaralit</b>
-                </div>
-                <div class="d-flex justify-content-center align-items-center col-2 py-3 m-0">
-
-                </div>
-                <div class="d-flex justify-content-center col-2 py-3 m-0">
-                  <button type="button" class="remove-friend m-0 p-0 text-light">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
-                      <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
-                    </svg>
-                  </button>
-                </div>
-              </li>   
+            <ul id="friends_ul" class="list-group row m-0 p-2 pt-0">   
 
             </ul>
 

@@ -1,5 +1,5 @@
 import { login,signup } from "./registration.js";
-import {setLogin,checkLogin,deleteLogin} from "./cookies.js";
+import { setLogin,checkLogin,deleteLogin } from "./cookies.js";
 
 if (await checkLogin()) {
 	window.location.href = "./game.html";
@@ -22,6 +22,8 @@ const signup_b = document.getElementById("signup_b");
 
 const errorLogin = document.getElementById("errorLogin");
 const errorSignup = document.getElementById("errorSignup");
+
+
 
 inPassLogin.onkeydown = (event) => {
 	if (event.keyCode === 13) {

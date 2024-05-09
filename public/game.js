@@ -1,10 +1,14 @@
 import {getCookie,checkLogin,deleteLogin} from "./cookies.js";
 import {draw_lobby} from "./canvas.js";
+import { render_requests,render_friends } from "./render.js";
+import { bind_friends, bind_requests } from "./bind.js";
 
 if (!(await checkLogin())) {
 	window.location.href = "./index.html";
 };
 const username = getCookie("username");
+const requests_ul = document.getElementById("requests_ul");
+const friends_ul = document.getElementById("friends_ul");
 
 const canvas = document.getElementById("tableCanvas");
 canvas.style.width ="100%";
@@ -44,12 +48,16 @@ add_friend_b.onclick = async () => {
 const socket = io();
 socket.emit("login", { username: username });
 
-socket.on("request", (requests) => {
-	console.log(requests);
+socket.on("request", async(requests) => {
+	console.log("requests",requests)
+	await render_requests(requests_ul,requests);
+	await bind_requests(socket,requests);
 });
 
-socket.on("friends", (friends) => {
-  	console.log(friends);
+socket.on("friends", async(friends) => {
+	console.log("friends",friends)
+	await render_friends(friends_ul,friends);
+	await bind_friends(socket,friends);
 });
 
 

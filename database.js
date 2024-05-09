@@ -410,6 +410,14 @@ const get_friendships = async(username) => {
     `);
 };
 
+const get_request_or_friend = async(utente1,utente2) => {
+    return await executeQuery(`
+        SELECT * FROM Amicizia
+        WHERE utente1 = '${utente1}'
+            AND utente2 = '${utente2}'
+    `);
+};
+
 
 /* TAVOLO */
 
@@ -673,6 +681,7 @@ module.exports = {
     delete_friendship: delete_friendship,                       //using username
     get_requests: get_requests,                                 //using username
     get_friendships: get_friendships,                           //using username
+    get_request_or_friend:get_request_or_friend,                //using usernamess
 
     create_table: create_table,     //CREATE n_mano, piccolo_buio
     delete_table: delete_table,                                 //using tavolo                 
