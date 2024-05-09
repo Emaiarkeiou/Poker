@@ -1,4 +1,4 @@
-import { login } from "./registration.js";
+import { login } from "./remote.js";
 
 const setCookie = (name,value) => {   
     document.cookie = name+'='+value;  
@@ -28,6 +28,6 @@ const checkLogin = async () => {
 const deleteLogin = () => {
     deleteCookie("username");
     deleteCookie("password");
-}
+};
 
-export { setCookie,deleteCookie,getCookie,setLogin,checkLogin,deleteLogin };
+export { setCookie,deleteCookie,getCookie,setLogin,checkLogin,deleteLogin};

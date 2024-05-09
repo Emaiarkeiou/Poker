@@ -1,4 +1,4 @@
-import { login,signup } from "./registration.js";
+import { login,signup } from "./remote.js";
 import { setLogin,checkLogin,deleteLogin } from "./cookies.js";
 
 if (await checkLogin()) {

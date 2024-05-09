@@ -22,17 +22,33 @@ const bind_requests = async (socket,requests) => { //[{utente1:nome,utente2:nome
 
 const bind_friends = async (socket,friends) => {   //[{username:username,online:0/1},]
     //remove_%USERNAME
+    //invite_%USERNAME
     friends.forEach((friend) => {
         document.getElementById(`remove_${friend.username}`).onclick = () => {
             socket.emit("remove_friendship",{username: friend.username})
         };
         if (friend.online) {
-            
-        } else {
-            
+            document.getElementById(`invite_${friend.username}`).onclick = () => {
+                socket.emit("invite",{username: friend.username})
+            };
+        } else {};
+    });
+};
+
+const bind_invites = async (socket,invites) => {   //[{username:username,online:0/1},]
+    //accept_invite_%USERNAME
+    //reject_invite_%USERNAME
+    invites.forEach((invite) => {
+        if (invite.username2 == getCookie("username")){
+            document.getElementById(`accept_invite_${invite.username1}`).onclick = () => {
+                socket.emit("accept_invite",{username: invite.username1})
+            };
+            document.getElementById(`reject_invite_${invite.username1}`).onclick = () => {
+                socket.emit("reject_invite",{username: invite.username1})
+            };
         };
     });
 };
 
 
-export { bind_requests,bind_friends };
+export { bind_requests,bind_friends,bind_invites };

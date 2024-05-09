@@ -23,11 +23,20 @@
       <div class="d-flex col-9" style="height: 92vh;">
         <canvas id="tableCanvas" style="z-index:1">
         </canvas>
-        <div class="d-flex col-9 justify-content-center align-items-center"style="height: 92vh;z-index:2; position:absolute;">
-          <div>
-            <button type="button" class="shadow btn btn-primary px-5 py-3" id="create_table_b"><b>Crea Tavolo</b></button>
+
+        <div class="d-flex col-9 p-4 align-items-center"style="height: 92vh;z-index:2; position:absolute;">
+          <div id="invites-container" class="col-3 p-2 h-100 overflow-hidden">
+            <h3 class="p-2 pb-0 m-0">Inviti</h3>
+            <ul id="invites_ul" class="list-group row m-0 p-2 pt-0">
+
+
+            </ul>
+          </div>
+          <div class="col-6 text-center">
+            <button type="button" class="btn btn-primary px-5 py-4" id="create_table_b"><b>Crea Tavolo</b></button>
           </div>
         </div>
+
         <button type="button" class="btn btn-danger py-2 btn-block" style="z-index:2; position:absolute;" id="logout_b"><b>Logout</b></button>
       </div>
       <div id="div_friends" class="row col-3 m-0 p-0" style="height: 92vh;">

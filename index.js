@@ -18,6 +18,7 @@ init();
 
 
 const STARTING_FICHES = 250;
+const MAXPLAYERS = 8;
 
 app.use(bodyParser.json());
 app.use(
@@ -51,12 +52,17 @@ app.post("/signup", async(req, res) => {
 });
 
 app.post("/create_table", async(req, res) => {
-    if (await db.login(req.headers.username,req.headers.password)) {
-        const tavolo = await db.create_table(req.headers.username);
-        const player = (await db.get_socket(req.headers.username))[0];
-        await update_player_table(player.socket, tavolo);
-        io.in(player.socket).socketsJoin(tavolo);
-        res.json({ result: "ok" });
+    if (await db.login(req.body.username, req.body.password)) {
+        try {
+            const tavolo = await db.create_table(req.body.username);
+            const player = (await db.get_socket(req.body.username))[0];
+            await db.update_player_table(player.socket, tavolo);
+            io.in(player.socket).socketsJoin(tavolo);
+            res.json({ result: "ok" });
+        } catch {
+            res.status(401); //401 è il codice unauthorized
+            res.json({ result: "Unauthorized" });
+        };
     } else {
         res.status(401); //401 è il codice unauthorized
         res.json({ result: "Unauthorized" });
@@ -88,9 +94,13 @@ const get_friends = async(username) => {
 };
 
 
-const get_invites = async(socket) => {
-    return await db.get_invites(socket);
-    // filtrare via lo username di chi ha chiesto
+const get_invites = async(socket) => {  //[{giocatore1:socket,giocatore2:socket,username1:username,username2:username,tavolo},]
+    let invites = await Promise.all((await db.get_invites(socket)).map(async (invite) => {
+        invite.username1 = (await db.get_username(invite.giocatore1))[0].username;
+        invite.username2 = (await db.get_username(invite.giocatore2))[0].username;
+        return invite;
+    }));
+    return invites;
 };
 
 const get_players = async(tavolo) => {
@@ -153,7 +163,7 @@ const calcola_vincitori = async(tavolo,players) => {
 };
 
 const get_players_cards = async(tavolo) => {
-    let all_cards = [];
+    let all_cards = {};
     await Promise.all((await db.get_players_by_table(tavolo)).map(async(player) => {
         let carte = await get_player_cards(player.socket);
         all_cards[player.ordine] = carte;
@@ -164,8 +174,8 @@ const get_players_cards = async(tavolo) => {
 
 
 const scala_ordine = async(tavolo) => {
-    const lunghezza = (await io.in(room).fetchSockets()).length;
-    const ordini = await get_orders(tavolo);
+    const lunghezza = (await io.in(tavolo).fetchSockets()).length;
+    const ordini = await db.get_orders(tavolo);
     for (let i=0;i<lunghezza;i++){
         await db.update_player_order_by_order(tavolo,ordini[i].ordine,i+1)
     };
@@ -216,6 +226,7 @@ const logout = async (socket_id) => {
     try {
         const player = (await db.get_username(socket_id))[0];
         const friends_list = await get_friends(player.username);
+        const invited_list = await get_invites(socket_id); //non spostare
         
         await db.delete_player(socket_id);
 
@@ -225,11 +236,9 @@ const logout = async (socket_id) => {
             };
         }));
 
-        const invited_list = await get_invites(socket_id);
-        await Promise.all(invited_list.map(async(invited) => {
-            if (invited.socket) {
-                io.to(invited.socket).emit("invite",await get_invites(invited.socket));
-            };
+        await Promise.all(invited_list.map(async(invite) => {
+            io.to(invite.giocatore1).emit("invite",await get_invites(invite.giocatore1));
+            io.to(invite.giocatore2).emit("invite",await get_invites(invite.giocatore2));
         }));    
     } catch {};
 };
@@ -264,25 +273,23 @@ io.of("/").adapter.on("leave-room", async (room, socket_id) => {
     if (room != socket_id) {
         console.log("left "+room)
         const player = await db.get_player(socket_id);
-        const turno = await db.get_hand_turn_round(room);
-        if (turno.giro) {        //se si è in una mano, crea un placeholder
+        if (await db.in_game(room)) {       //se si è in una mano, crea un placeholder
             await db.create_placeholder(socket_id,room,player.ordine,"True");       //socket,tavolo,ordine,eliminato
             await db.update_player_cards(socket_id,"NULL","NULL");   //carte
         } else {
             await scala_ordine(room);
         };
-
         await db.update_player_table(socket_id,"NULL");         //tavolo
         await db.update_ready(socket_id,"False");               //pronto
         await db.update_eliminated(socket_id,"False");          //eliminato
         await db.update_fiches(socket_id,"NULL");               //fiches
         await db.update_player_order(socket_id,"NULL");         //ordine
 
-        if ((await io.in(room).fetchSockets()).length === 0) {
+        if (!((await io.in(room).fetchSockets()).length)) {
             await db.delete_table(room);
         } else {
             await db.delete_invites_player(socket_id);              //inviti
-            io.to(tavolo).emit("players",await get_players(tavolo));
+            io.to(room).emit("players",await get_players(room));
         };
     };
 });
@@ -323,22 +330,29 @@ io.on("connection", (socket) => {
     /* INVITI AL TAVOLO */
 
     socket.on("invite", async (m) => {
-        const username2 = m.username;
-        const socket2 = (await db.get_socket(username2))[0].socket;
+        if ([...socket.rooms].length > 1) {
+            const username2 = m.username;
+            const socket2 = (await db.get_socket(username2))[0].socket;
 
-        await db.create_invite(socket.id,socket2,socket.rooms[0]);
-            
-        io.to(socket.id).emit("invite",await get_invites(socket.id));
-        io.to(socket2).emit("invite",await get_invites(socket2));
+            await db.create_invite(socket.id,socket2,[...socket.rooms][1]);
+                
+            io.to(socket.id).emit("invite",await get_invites(socket.id));
+            io.to(socket2).emit("invite",await get_invites(socket2));
+        };
     });
 
     socket.on("accept_invite", async (m) => {
         const username1 = m.username;
         const socket1 = (await db.get_socket(username1))[0].socket;
-    
+        const tavolo = (await db.get_player(socket1)).tavolo;
+        
         await db.delete_invite(socket1,socket.id);
-        await update_player_table(socket.id, socket.rooms[0]);
-        io.in(socket.id).socketsJoin(socket.rooms[0]);
+        await db.update_player_table(socket.id, tavolo);
+        io.in(socket.id).socketsJoin(tavolo);
+
+        if (io.sockets.adapter.rooms.get(tavolo).size >= MAXPLAYERS) {
+            await db.delete_invites_table(tavolo);
+        };
 
         io.to(socket1).emit("invite",await get_invites(socket1));
         io.to(socket.id).emit("invite",await get_invites(socket.id));
@@ -431,17 +445,17 @@ io.on("connection", (socket) => {
 
     socket.on("ready", async () => {
         await db.update_ready(socket.id,"True");
-        let all_ready = await db.check_ready(socket.rooms[0]);
+        let all_ready = await db.check_ready([...socket.rooms][1]);
         all_ready = await Promise.all(all_ready.map((pronto) => pronto.pronto));
-        io.to(socket.rooms[0]).emit("players",await get_players(socket.rooms[0]));
+        io.to([...socket.rooms][1]).emit("players",await get_players([...socket.rooms][1]));
         if (all_ready.every(Boolean)) {
-            start_hand(socket.rooms[0])
+            start_hand([...socket.rooms][1])
         };
     });
 
     socket.on("unready", async () => {
         await db.update_ready(socket.id,"False");
-        io.to(socket.rooms[0]).emit("players",await get_players(socket.rooms[0]));
+        io.to([...socket.rooms][1]).emit("players",await get_players([...socket.rooms][1]));
     });
 
 
@@ -460,7 +474,7 @@ io.on("connection", (socket) => {
         let turno = parseInt(m.turno);
         const tipo = m.tipo;
         const fiches_puntate = parseInt(m.somma);
-        const tavolo = socket.rooms[0];
+        const tavolo = [...socket.rooms][1];
 
         if (["check","call","raise","all-in","small-blind","big-blind","fold"].includes(tipo)) { //tipo? check allin raise call fold small blind big blind
             if (await db.check_fiches(socket.id,fiches_puntate)) {              //check che il giocatore abbia abbastanza fiches
@@ -515,11 +529,11 @@ io.on("connection", (socket) => {
     /* USCITA */
 
     socket.on("quit_table", async () => {
-        io.in(socket.id).socketsLeave(socket.rooms[0]);
+        io.in(socket.id).socketsLeave([...socket.rooms][1]);
     });
 
     socket.on("disconnect", async () => {
-        io.in(socket.id).socketsLeave(socket.rooms[0]);         
+        io.in(socket.id).socketsLeave([...socket.rooms][1]);         
         await logout(socket.id);                                //player
     });
 });

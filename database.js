@@ -284,7 +284,7 @@ const get_player_by_order = async(tavolo,ordine) => {
 
 const get_player = async(socket) => {
     return (await executeQuery(`
-        SELECT pronto,ordine,fiches,eliminato FROM Giocatore
+        SELECT pronto,ordine,fiches,eliminato,tavolo FROM Giocatore
         WHERE socket = '${socket}'
             AND username != ''
     `))[0];
@@ -339,8 +339,8 @@ const create_invite = async(socket1,socket2,tavolo) => {
 const delete_invite = async(socket1,socket2) => {
     await executeQuery(`
         DELETE FROM Invito
-        WHERE utente1 = '${socket1}'
-            AND utente2 = '${socket2}'
+        WHERE giocatore1 = '${socket1}'
+            AND giocatore2 = '${socket2}'
     `);
 };
 
@@ -488,11 +488,11 @@ const update_hand_turn = async(tavolo,turno) => {
     `);
 };
 
-const get_hand_turn_round = async(tavolo) => {
+const in_game = async(tavolo) => {
     return (await executeQuery(`
-        SELECT turno,giro FROM Mano
+        SELECT * FROM Mano
         WHERE tavolo = ${tavolo}
-    `))[0];
+    `)).length;
 };
 
 /* PUNTATA */
@@ -692,7 +692,7 @@ module.exports = {
     delete_hand:delete_hand,                                    //using tavolo
     update_hand_round:update_hand_round,                        //using tavolo,giro
     update_hand_turn:update_hand_turn,                          //using tavolo,turno
-    get_hand_turn_round:get_hand_turn_round,                    //using tavolo
+    in_game:in_game,                                            //using tavolo
 
     create_bet:create_bet,                                      //using socket,tavolo,giro
     add_to_bet:add_to_bet,                                      //using socket,tavolo,giro
