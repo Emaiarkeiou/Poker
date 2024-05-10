@@ -108,7 +108,7 @@ const get_players_by_table = async(tavolo) => {
     return await db.get_players_by_table(tavolo);
 };
 
-const get_hand = async(tavolo,giro,turno) => {
+const get_hand = async(tavolo,giro,turno) => { //piatto, dealer, small blind, turno, giro, carte presenti
     //tavolo information: dealer/n_mano, //gestire chi parte prima, turno
                         //turno(il primo turno è del 2* giocatore, lo small blind), 
                         //giro
@@ -176,7 +176,7 @@ const scala_ordine = async(tavolo) => {
     const lunghezza = (await io.in(tavolo).fetchSockets()).length;
     const ordini = await db.get_orders(tavolo);
     for (let i=0;i<lunghezza;i++){
-        await db.update_player_order_by_order(tavolo,ordini[i].ordine,i+1)
+        await db.update_player_order_by_order(tavolo,ordini[i].ordine,i+1);
     };
 };
 
@@ -198,8 +198,7 @@ const start_hand = async(tavolo) => {
     }));
 
     io.to(tavolo).emit("start hand",await get_hand(tavolo,1,2));
-    io.to(room).emit("players",await get_players_by_table(room));
-
+    io.to(tavolo).emit("players",await get_players_by_table(tavolo));
     io.to((await db.get_player_by_order(tavolo,2)).socket).emit("turn",{giro:1,turno:2});  //inizia il giocatore 2 del giro 1, lo small blind
 };
 
@@ -246,12 +245,16 @@ const logout = async (socket_id) => {
     "request"       manda tutte le richieste di amicizia mandate o ricevute dal client
     "invite"        manda tutti gli inviti al tavolo mandati o ricevuti dal client
     "friends"       manda tutti gli username e stati online degli amici del client
+
+    "players"       manda le informazioni generali dei giocatori del tavolo: pronto, fiches, ordine(per disegnarli in lobby e in gioco)
+
     "start hand"    manda le informazioni generali della mano: piatto, dealer, small blind, turno
-    "players"       manda le informazioni generali dei giocatori del tavolo: pronto, fiches, ordine(per disegnarli in ordine)
+
     "your cards"    manda le carte del client con id e immagine
     "hand"          manda le informazioni generali della mano: piatto, dealer, small blind, turno, giro, carte presenti
     "turn"          dice al client che è il suo turno e manda il turno per verificare
     "move"          manda le informazioni della mossa fatta: tipo e puntata
+
     "all cards"     manda tutte le carte dei giocatori in gioco
     "end hand"      manda il vincitore e dice al client che la mano è finita
     "error"         manda una stringa con l'errore
@@ -259,7 +262,7 @@ const logout = async (socket_id) => {
 
 const io = new Server(server);
 
-io.of("/").adapter.on("join-room", async (room, socket_id) => {
+io.of("/").adapter.on("join-room", async (room, socket_id) => {     //room=tavolo
     if (room != socket_id) {
         console.log("join "+room)
         await db.update_player_order(socket_id,((await io.in(room).fetchSockets()).length))
@@ -268,21 +271,23 @@ io.of("/").adapter.on("join-room", async (room, socket_id) => {
     };
 });
 
-io.of("/").adapter.on("leave-room", async (room, socket_id) => {
+io.of("/").adapter.on("leave-room", async (room, socket_id) => {    //room=tavolo
     if (room != socket_id) {
         console.log("left "+room)
         const player = await db.get_player(socket_id);
-        if (await db.in_game(room)) {       //se si è in una mano, crea un placeholder
-            await db.create_placeholder(socket_id,room,player.ordine,"True");       //socket,tavolo,ordine,eliminato
-            await db.update_player_cards(socket_id,"NULL","NULL");   //carte
-        } else {
-            await scala_ordine(room);
-        };
+        
         await db.update_player_table(socket_id,"NULL");         //tavolo
         await db.update_ready(socket_id,"False");               //pronto
         await db.update_eliminated(socket_id,"False");          //eliminato
         await db.update_fiches(socket_id,"NULL");               //fiches
         await db.update_player_order(socket_id,"NULL");         //ordine
+
+        if (await db.in_game(room)) { //non spostare      //se si è in una mano, crea un placeholder
+            await db.create_placeholder(socket_id,room,player.ordine,"True");       //socket,tavolo,ordine,eliminato
+            await db.update_player_cards(socket_id,["NULL","NULL"]);   //carte
+        } else {
+            await scala_ordine(room);
+        };
 
         if (!((await io.in(room).fetchSockets()).length)) {
             await db.delete_table(room);
@@ -303,20 +308,22 @@ io.on("connection", (socket) => {
     socket.on("login", async (m) => {
         const username = m.username;
         if ((await db.get_socket(username)).length) {
-            socket.emit("error","user already logged in");
-        } else {
-            console.log("socket logged: " + socket.id);
-            await db.create_player(socket.id,username);
-            const friends_list = await get_friends(username);
-
-            socket.emit("friends",friends_list);
-            socket.emit("request",await get_requests(username));
-            await Promise.all(friends_list.map(async(friend) => {
-                if (friend.online) {
-                    io.to((await db.get_socket(friend.username))[0].socket).emit("friends",await get_friends(friend.username));
-                };
-            }));
+            try {
+                await db.delete_player((await db.get_socket(username))[0].socket);
+            } catch {};
         };
+        console.log("socket logged: " + socket.id);
+        await db.create_player(socket.id,username);
+        const friends_list = await get_friends(username);
+
+        socket.emit("friends",friends_list);
+        socket.emit("request",await get_requests(username));
+        await Promise.all(friends_list.map(async(friend) => {
+            if (friend.online) {
+                io.to((await db.get_socket(friend.username))[0].socket).emit("friends",await get_friends(friend.username));
+            };
+        }));
+
         
     });
 
@@ -447,7 +454,7 @@ io.on("connection", (socket) => {
         let all_ready = await db.check_ready([...socket.rooms][1]);
         all_ready = await Promise.all(all_ready.map((pronto) => pronto.pronto));
         io.to([...socket.rooms][1]).emit("players",await get_players_by_table([...socket.rooms][1]));
-        if (all_ready.every(Boolean)) {
+        if (all_ready.length>=2 && all_ready.every(Boolean)) {
             start_hand([...socket.rooms][1])
         };
     });
@@ -489,6 +496,7 @@ io.on("connection", (socket) => {
             await db.update_eliminated(socket.id,"True");
         };
         io.to(tavolo).emit("move",{tipo:tipo,puntata:(await get_bet(socket.id,tavolo,giro))[0]});
+        io.to(tavolo).emit("players",await get_players_by_table(tavolo));
 
         const in_gioco = await db.get_players_in_hand(tavolo);      //lista dei giocatori ancora in gioco {socket,ordine,fiches}
         

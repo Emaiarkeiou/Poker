@@ -7,7 +7,7 @@ import { bind_friends, bind_requests, bind_invites } from "./bind.js";
 if (!(await checkLogin())) {
 	window.location.href = "./index.html";
 };
-const username = getCookie("username");
+
 const requests_ul = document.getElementById("requests_ul");
 const friends_ul = document.getElementById("friends_ul");
 const invites_ul = document.getElementById("invites_ul");
@@ -27,14 +27,53 @@ draw_lobby(ctx,width,height,step);
 
 
 
+
+
+
 //CREAZIONE TAVOLO
 
 const create_table_b = document.getElementById("create_table_b");
+const quit_b = document.getElementById("quit_b");
+const ready_b = document.getElementById("ready_b");
+const ready_check = document.getElementById("ready_check");
+
 create_table_b.onclick = async() => {
-	if (await create_table(getCookie("username"),getCookie("password"))) {
-		
+	await create_table(getCookie("username"),getCookie("password"));
+	//create_table_b.classList.add("d-none");
+	//ready_b.classList.remove("d-none");
+	//quit_b.classList.remove("d-none");
+};
+
+// ESCI
+
+quit_b.onclick = async () => {
+	socket.emit("quit_table");
+	draw_lobby(ctx,width,height,step);
+	create_table_b.classList.remove("d-none");
+	ready_b.classList.add("d-none");
+	quit_b.classList.add("d-none");
+	ready_b.classList.remove("ready");
+};
+
+// PRONTO
+
+ready_b.onclick = async () => {
+	ready_check.checked=!ready_check.checked;
+	if (ready_check.checked) {
+		ready_b.classList.add("ready");
+		socket.emit("ready");
+	} else {
+		socket.emit("unready");
+		ready_b.classList.remove("ready");
 	};
 };
+
+
+
+
+
+
+
 
 
 
@@ -57,8 +96,10 @@ add_friend_b.onclick = async () => {
 
 
 
+
 //WEBSOCKET
 
+const username = getCookie("username");
 const socket = io();
 socket.emit("login", { username: username });
 
@@ -90,6 +131,9 @@ socket.on("players", async(players) => { //informazioni generali dei giocatori d
 	*/
 	//if not in game
 		create_table_b.classList.add("d-none");
+		ready_b.classList.remove("d-none");
+		quit_b.classList.remove("d-none");
+		draw_lobby(ctx,width,height,step);
 		draw_table(ctx,width,height,step);
 		draw_players(ctx,width,height,step,players);
 	//if game
