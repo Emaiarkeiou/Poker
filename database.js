@@ -21,10 +21,11 @@ const createTables = async () => {
         CREATE TABLE IF NOT EXISTS Tavolo ( 
             id INT PRIMARY KEY AUTO_INCREMENT,
             n_mano INT NOT NULL,
-            small_blind INT NOT NULL
+            dealer INT NOT NULL
         )
     `); //n_mano corrisponde al dealer perchè gira
-        //small blind è la quantità che deve puntare
+        //small blind si calcola con n_mano
+        //numero(ordine) del giocatore che è il dealer
 
     await executeQuery(`
         CREATE TABLE IF NOT EXISTS Carta (
@@ -423,7 +424,7 @@ const get_request_or_friend = async(utente1,utente2) => {
 
 const create_table = async() => {
     await executeQuery(`
-        INSERT INTO Tavolo (n_mano,small_blind) VALUES (1,1)
+        INSERT INTO Tavolo (n_mano,dealer) VALUES (1,1)
     `);
     return select_last_insert_id();
 };
@@ -439,6 +440,38 @@ const increment_table_hand = async(tavolo) => {
     await executeQuery(`
         UPDATE Tavolo
         SET n_mano = n_mano + 1
+        WHERE id = ${tavolo}
+    `);
+};
+
+const increment_table_dealer = async(tavolo) => {
+    await executeQuery(`
+        UPDATE Tavolo
+        SET dealer = dealer + 1
+        WHERE id = ${tavolo}
+    `);
+};
+
+const decrement_table_dealer = async(tavolo) => {
+    await executeQuery(`
+        UPDATE Tavolo
+        SET dealer = dealer - 1
+        WHERE id = ${tavolo}
+    `);
+};
+
+const update_table_dealer = async(tavolo,dealer) => {
+    await executeQuery(`
+        UPDATE Tavolo
+        SET dealer = ${dealer}
+        WHERE id = ${tavolo}
+    `);
+};
+
+
+const get_table = async(tavolo) => {
+    return await executeQuery(`
+        SELECT n_mano,dealer FROM Tavolo
         WHERE id = ${tavolo}
     `);
 };
@@ -460,9 +493,9 @@ const check_ready = async(tavolo) => {
 const create_hand = async(tavolo,giro,turno) => {
     await executeQuery(`
         INSERT IGNORE INTO Mano (tavolo,giro,turno)
-        VALUES (${tavolo},1,2)
+        VALUES (${tavolo},1,${turno})
     `); //giro = 1
-        //turno = 2 per lo small blind
+        //turno = dealer +1
 };
 
 const delete_hand = async(tavolo) => {
@@ -488,11 +521,11 @@ const update_hand_turn = async(tavolo,turno) => {
     `);
 };
 
-const in_game = async(tavolo) => {
+const get_hand = async(tavolo) => {
     return (await executeQuery(`
         SELECT * FROM Mano
         WHERE tavolo = ${tavolo}
-    `)).length;
+    `));
 };
 
 /* PUNTATA */
@@ -527,6 +560,14 @@ const get_bets_sum = async(tavolo) => {
     return await executeQuery(`
         SELECT SUM(somma) FROM Puntata
         WHERE mano = ${tavolo}
+    `);
+};
+
+const get_round_bets = async(tavolo,giro) => {
+    return await executeQuery(`
+        SELECT * FROM Puntata
+        WHERE mano = ${tavolo}
+            AND giro = ${giro}
     `);
 };
 
@@ -686,18 +727,23 @@ module.exports = {
     create_table: create_table,     //CREATE n_mano, piccolo_buio
     delete_table: delete_table,                                 //using tavolo                 
     increment_table_hand:increment_table_hand,                  //using tavolo
+    increment_table_dealer:increment_table_dealer,              //using tavolo
+    decrement_table_dealer:decrement_table_dealer,              //using tavolo
+    update_table_dealer:update_table_dealer,                    //using tavolo
+    get_table:get_table,                                        //using tavolo
     check_ready: check_ready,       //check if every1 is ready  //using tavolo
 
     create_hand:create_hand,
     delete_hand:delete_hand,                                    //using tavolo
     update_hand_round:update_hand_round,                        //using tavolo,giro
     update_hand_turn:update_hand_turn,                          //using tavolo,turno
-    in_game:in_game,                                            //using tavolo
+    get_hand:get_hand,                                          //using tavolo
 
     create_bet:create_bet,                                      //using socket,tavolo,giro
     add_to_bet:add_to_bet,                                      //using socket,tavolo,giro
     get_bet:get_bet,                                            //using socket,tavolo,giro
     get_bets_sum:get_bets_sum,                                  //using tavolo
+    get_round_bets:get_round_bets,                              //using tavolo,giro
     check_bets:check_bets,                                      //using tavolo,giro                 //length
     check_allin:check_allin,                                    //using tavolo                      //length
 

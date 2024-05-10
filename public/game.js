@@ -141,7 +141,10 @@ socket.on("players", async(players) => { //informazioni generali dei giocatori d
 });
 
 
-
+socket.on("start hand", async(info) => {
+	//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}]}
+	//RICORDARE DI TOGLIERE DA SOMMA TOT, LE PUNTATE DEL GIRO CORRENTE
+});
 
 
 //LOGOUT
