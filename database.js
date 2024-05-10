@@ -292,7 +292,7 @@ const get_player = async(socket) => {
 
 const get_players_by_table = async(tavolo) => {
     return await executeQuery(`
-        SELECT socket,pronto,ordine,fiches,eliminato FROM Giocatore
+        SELECT username,pronto,ordine,fiches,eliminato FROM Giocatore
         WHERE tavolo = ${tavolo}
             AND username != ''
     `);

@@ -103,10 +103,9 @@ const get_invites = async(socket) => {  //[{giocatore1:socket,giocatore2:socket,
     return invites;
 };
 
-const get_players = async(tavolo) => {
-    //general info: TUTTI i giocatori del tavolo con pronto, fiches, ordine, eliminato
-    //get_orders
-    return {};
+const get_players_by_table = async(tavolo) => {
+    //general info: TUTTI i giocatori del tavolo con username,pronto,ordine,fiches,eliminato
+    return await db.get_players_by_table(tavolo);
 };
 
 const get_hand = async(tavolo,giro,turno) => {
@@ -164,8 +163,8 @@ const calcola_vincitori = async(tavolo,players) => {
 
 const get_players_cards = async(tavolo) => {
     let all_cards = {};
-    await Promise.all((await db.get_players_by_table(tavolo)).map(async(player) => {
-        let carte = await get_player_cards(player.socket);
+    await Promise.all((await get_players_by_table(tavolo)).map(async(player) => {
+        let carte = await get_player_cards(await db.get_socket(player.username));
         all_cards[player.ordine] = carte;
     }));
     return all_cards;      //{ordine : [ {id,valore,seme,path} , {id,valore,seme,path} ], x n}
@@ -199,7 +198,7 @@ const start_hand = async(tavolo) => {
     }));
 
     io.to(tavolo).emit("start hand",await get_hand(tavolo,1,2));
-    io.to(room).emit("players",await get_players(room));
+    io.to(room).emit("players",await get_players_by_table(room));
 
     io.to((await db.get_player_by_order(tavolo,2)).socket).emit("turn",{giro:1,turno:2});  //inizia il giocatore 2 del giro 1, lo small blind
 };
@@ -219,7 +218,7 @@ const end_hand = async(tavolo,vincitori) => {
     await db.delete_placeholders(tavolo);
     await scala_ordine(tavolo);
     await db.revisit_elimated(tavolo);
-    io.to(tavolo).emit("players",await get_players(tavolo));
+    io.to(tavolo).emit("players",await get_players_by_table(tavolo));
 };
 
 const logout = async (socket_id) => {
@@ -265,7 +264,7 @@ io.of("/").adapter.on("join-room", async (room, socket_id) => {
         console.log("join "+room)
         await db.update_player_order(socket_id,((await io.in(room).fetchSockets()).length))
         await db.update_fiches(socket_id,STARTING_FICHES)
-        io.to(room).emit("players",await get_players(room));
+        io.to(room).emit("players",await get_players_by_table(room));
     };
 });
 
@@ -289,7 +288,7 @@ io.of("/").adapter.on("leave-room", async (room, socket_id) => {
             await db.delete_table(room);
         } else {
             await db.delete_invites_player(socket_id);              //inviti
-            io.to(room).emit("players",await get_players(room));
+            io.to(room).emit("players",await get_players_by_table(room));
         };
     };
 });
@@ -447,7 +446,7 @@ io.on("connection", (socket) => {
         await db.update_ready(socket.id,"True");
         let all_ready = await db.check_ready([...socket.rooms][1]);
         all_ready = await Promise.all(all_ready.map((pronto) => pronto.pronto));
-        io.to([...socket.rooms][1]).emit("players",await get_players([...socket.rooms][1]));
+        io.to([...socket.rooms][1]).emit("players",await get_players_by_table([...socket.rooms][1]));
         if (all_ready.every(Boolean)) {
             start_hand([...socket.rooms][1])
         };
@@ -455,7 +454,7 @@ io.on("connection", (socket) => {
 
     socket.on("unready", async () => {
         await db.update_ready(socket.id,"False");
-        io.to([...socket.rooms][1]).emit("players",await get_players([...socket.rooms][1]));
+        io.to([...socket.rooms][1]).emit("players",await get_players_by_table([...socket.rooms][1]));
     });
 
 

@@ -1,6 +1,6 @@
 import { create_table } from "./remote.js";
 import { getCookie,checkLogin,deleteLogin } from "./cookies.js";
-import { draw_lobby,draw_table } from "./canvas.js";
+import { draw_lobby,draw_table,draw_players } from "./canvas.js";
 import { render_requests,render_friends,render_invites  } from "./render.js";
 import { bind_friends, bind_requests, bind_invites } from "./bind.js";
 
@@ -80,7 +80,7 @@ socket.on("invite", async(invites) => {
 	await bind_invites(socket,invites);
 });
 
-socket.on("players", async(players) => { //informazioni generali dei giocatori del tavolo: pronto, fiches, ordine(per disegnarli in ordine)
+socket.on("players", async(players) => { //informazioni generali dei giocatori del tavolo: username,pronto,ordine,fiches,eliminato
 	console.log("players",players)
 	/*
 	
@@ -91,6 +91,7 @@ socket.on("players", async(players) => { //informazioni generali dei giocatori d
 	//if not in game
 		create_table_b.classList.add("d-none");
 		draw_table(ctx,width,height,step);
+		draw_players(ctx,width,height,step,players);
 	//if game
 		//draw canvas game
 });

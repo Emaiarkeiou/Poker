@@ -4,7 +4,6 @@ const draw_lobby = (ctx,width,height,step) => {
     grad.addColorStop(1, "#030806");
     ctx.fillStyle = grad;
     ctx.fillRect(0,0, width,height);
-    
 };
 
 const draw_table = (ctx,width,height,step) => {
@@ -56,4 +55,12 @@ const draw_table = (ctx,width,height,step) => {
     ctx.closePath();
 }
 
-export { draw_lobby,draw_table };
+const draw_players = (ctx,width,height,step,players) => {
+    const grad=ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2,height/2); 	//center,center,innerradius,center,center,outerradius
+    grad.addColorStop(0, "#0a1711");
+    grad.addColorStop(1, "#030806");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0, width,height);
+};
+
+export { draw_lobby,draw_table,draw_players };
