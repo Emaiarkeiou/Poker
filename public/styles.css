@@ -175,10 +175,6 @@ body {
 
 
 
-.separator {
-    border-top: 1px solid rgba(40,98,91,0.2);
-}
-
 #add_friend {
     background: rgba(40,98,91,0.1);
     border: none;
@@ -213,4 +209,13 @@ input::placeholder {
     transition: opacity 200ms, display 200ms;
     display: none;
     opacity: 0;
+}
+
+
+
+#div_moves {
+    background: linear-gradient(to bottom right,rgba(40,98,91,0.5), rgba(18,53,36,0.3));
+    border: 1px solid rgba(18,53,36,0.1);
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
 }

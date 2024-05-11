@@ -13,6 +13,7 @@ let in_game = false;
 const navbar = document.getElementById("navbar");
 const div_friends = document.getElementById("div_friends");
 const div_invites = document.getElementById("div_invites");
+const div_moves = document.getElementById("div_moves");
 
 const requests_ul = document.getElementById("requests_ul");
 const friends_ul = document.getElementById("friends_ul");
@@ -204,11 +205,12 @@ canvas_container.classList.add("full-screen")
 navbar.classList.add("dis-none");
 div_friends.classList.add("dis-none");
 div_invites.classList.add("dis-none");
+div_moves.classList.remove("d-none");
 canvas.style.width ="100%";
 canvas.style.height="100%";
 canvas.width = canvas.offsetWidth;
 canvas.height = canvas.offsetHeight;
-let infor = {carte:[{path:"/cards/14-2.png"},{path:"/cards/13-2.png"},{path:"/cards/12-2.png"},{path:"/cards/11-2.png"},{path:"/cards/12-2.png"}], 
+let infor = {carte:[], 
 			dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2}
 setTimeout(() => {
 	canvas.style.width ="100%";

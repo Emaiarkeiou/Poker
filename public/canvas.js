@@ -123,7 +123,8 @@ const transition = async (canvas_container,canvas,ctx,width,height,step,players,
 
 
 
-const draw_hand = async (ctx,width,height,step,info) => {     //{carte:[{id,valore,seme,path}], dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2}
+const draw_hand = async (ctx,width,height,step,info) => {     
+    //{carte:[{id,valore,seme,path}], dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2}
     let c = {x:width/2,y:height/2};     //centro del canvas
     console.log(window.innerWidth,window.innerHeight)
     console.log(width,height,c.x,c.y)
@@ -150,42 +151,64 @@ const draw_hand = async (ctx,width,height,step,info) => {     //{carte:[{id,valo
     ctx.stroke();
 
 
-    ctx.beginPath();    
-    ctx.roundRect(2*cardwidth-3*step,2*cardwidth-3*step,    width-2*(2*cardwidth-3*step),height-2*(2*cardwidth-3*step)     ,step/2); 
-    ctx.stroke();
+    
 
+
+    ctx.shadowColor = "#7df9ff";
     for (let i=0;i<6;i++) {
         ctx.beginPath();
         if (i == 5) {
+            
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = "#37877f";
+            ctx.lineWidth = 1;
             ctx.roundRect(  (c.x-total_width/2+step) + i*(cardwidth+2*step), 
                         c.y-(step+cardwidth*3)/2,          
+                        cardwidth*2+step*3,
                         cardwidth*3+step,
-                        cardwidth*3+step,
-                        step/3
-        ); 
+                        step/3        
+            ); 
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.shadowBlur = 13;
+            ctx.strokeStyle = "#7df9ff";
+            ctx.lineWidth = step/4;
+            ctx.roundRect(  (c.x-total_width/2+2*step) + i*(cardwidth+2*step), 
+                        c.y-(cardwidth*3-step)/2,          
+                        cardwidth*2+step,
+                        cardwidth*3-step,
+                        step/3        
+            );
+            ctx.stroke();
+
         } else {
-            ctx.roundRect(  (c.x-total_width/2+step) + i*(cardwidth+2*step), 
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = "#37877f";
+            ctx.lineWidth = 1;
+            ctx.roundRect(  c.x-((7/2)*cardwidth+6.5*step) + i*(cardwidth+2*step), 
                         c.y-(cardheight+step)/2,          
                         cardwidth+step,
                         cardheight+step,
                         step/3
-        ); 
-        }
+            ); 
+            ctx.stroke();
 
-        ctx.stroke();
+            ctx.beginPath();
+            ctx.shadowBlur = 13;
+            ctx.strokeStyle = "#7df9ff";
+            ctx.lineWidth = step/4;
+            ctx.roundRect(  c.x-((7/2)*cardwidth+5.5*step) + i*(2*step+cardwidth), 
+                        c.y-(cardheight-step)/2,          
+                        cardwidth-step,
+                        cardheight-step,
+                        step/3
+            ); 
+            ctx.stroke();
+        };
     };
 
-    const draw = (images,i) => {
-        if (images.length > i) {
-            images[i].onload = () => {
-                ctx.drawImage(images[i],i*100,0)
-                images[i+1].onload = draw(images,i+1)
-            }
-        }
-    }
-    
-
-    ///cards/logo.png
+    // CARTE IN TAVOLO
     let i = 0
     let images = [];
     info.carte.forEach((carta) => {
@@ -195,16 +218,15 @@ const draw_hand = async (ctx,width,height,step,info) => {     //{carte:[{id,valo
         i++;
     });
 
-    draw(images,0);
-    /*
-    images.forEach((image) => { //l'ordine di visualizzazione è casuale
+
+    images.forEach((image) => { //l'ordine di visualizzazione è casuale???
         image.onload = () => {
-            ctx.drawImage(image,images.indexOf(image)*100,0)
-        }
-    })*/
+            ctx.drawImage(image,c.x-((7/2)*cardwidth+6*step)+images.indexOf(image)*(2*step+cardwidth),    
+                            c.y-cardheight/2,cardwidth,cardheight);
+        };
+    });
     
 
-    ctx.lineWidth = step/3;
 };
 
 
