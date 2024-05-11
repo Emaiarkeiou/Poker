@@ -1,20 +1,28 @@
 import { create_table } from "./remote.js";
 import { getCookie,checkLogin,deleteLogin } from "./cookies.js";
-import { draw_lobby,draw_table,draw_players } from "./canvas.js";
+import { draw_lobby,draw_table,draw_players,transition,draw_hand } from "./canvas.js";
 import { render_requests,render_friends,render_invites  } from "./render.js";
 import { bind_friends, bind_requests, bind_invites } from "./bind.js";
 
 if (!(await checkLogin())) {
 	window.location.href = "./index.html";
 };
+document.getElementById("navbar_username").innerText = getCookie("username");
+
+let in_game = false;
+const navbar = document.getElementById("navbar");
+const div_friends = document.getElementById("div_friends");
+const div_invites = document.getElementById("div_invites");
 
 const requests_ul = document.getElementById("requests_ul");
 const friends_ul = document.getElementById("friends_ul");
 const invites_ul = document.getElementById("invites_ul");
+const invites_container = document.getElementById("invites_container");
 
 const logout_b = document.getElementById("logout_b");
 
-const canvas = document.getElementById("tableCanvas");
+const canvas_container = document.getElementById("canvas_container");
+const canvas = document.getElementById("canvas");
 canvas.style.width ="100%";
 canvas.style.height="100%";
 canvas.width  = canvas.offsetWidth;
@@ -48,8 +56,10 @@ create_table_b.onclick = async() => {
 
 quit_b.onclick = async () => {
 	socket.emit("quit_table");
+	ctx.clearRect(0,0,width,height);
 	draw_lobby(ctx,width,height,step);
 	create_table_b.classList.remove("d-none");
+	invites_container.classList.remove("d-none");
 	ready_b.classList.add("d-none");
 	quit_b.classList.add("d-none");
 	ready_b.classList.remove("ready");
@@ -121,29 +131,46 @@ socket.on("invite", async(invites) => {
 	await bind_invites(socket,invites);
 });
 
+let v_players = [];
+
 socket.on("players", async(players) => { //informazioni generali dei giocatori del tavolo: username,pronto,ordine,fiches,eliminato
 	console.log("players",players)
+	v_players = players;
 	/*
 	
 	GESTIRE PULSANTE INVITI, non mostrarlo se è già nel tavolo
 	mostrarlo se si è in un tavolo NON pieno
+	non mostrare gli inviti se si è già in un tavolo
 	
 	*/
-	//if not in game
+	if (!in_game){
 		create_table_b.classList.add("d-none");
+		invites_container.classList.add("d-none");
 		ready_b.classList.remove("d-none");
 		quit_b.classList.remove("d-none");
 		draw_lobby(ctx,width,height,step);
-		draw_table(ctx,width,height,step);
-		draw_players(ctx,width,height,step,players);
-	//if game
+		draw_table(ctx,width,height,step,1,1);
+		draw_players(ctx,width,height,step,players,0,0);
+	} else {
 		//draw canvas game
+	};
 });
 
 
-socket.on("start hand", async(info) => {
+socket.on("start hand", async(info) => {	//{carte:[], dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2}
+	in_game = true;
+	ready_b.classList.add("d-none");
+	quit_b.classList.add("d-none");
+	ready_b.classList.remove("ready");
+	await transition(canvas_container,canvas,ctx,width,height,step,v_players,navbar,div_friends,div_invites,info);
 	//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}]}
 	//RICORDARE DI TOGLIERE DA SOMMA TOT, LE PUNTATE DEL GIRO CORRENTE
+});
+
+
+
+socket.on("turn", async(turn) => { //{giro:1,turno:2}
+	console.log(turn)
 });
 
 
@@ -165,5 +192,28 @@ window.onpageshow = (event) => {
 	if (event.persisted) {
 		console.log("awg")
 	  	window.location.reload();
-	}
+	};
 };
+
+
+
+//{carte:[], dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2}
+create_table_b.classList.add("d-none");
+invites_container.classList.add("d-none");
+canvas_container.classList.add("full-screen")
+navbar.classList.add("dis-none");
+div_friends.classList.add("dis-none");
+div_invites.classList.add("dis-none");
+canvas.style.width ="100%";
+canvas.style.height="100%";
+canvas.width = canvas.offsetWidth;
+canvas.height = canvas.offsetHeight;
+let infor = {carte:[{path:"/cards/14-2.png"},{path:"/cards/13-2.png"},{path:"/cards/12-2.png"},{path:"/cards/11-2.png"},{path:"/cards/12-2.png"}], 
+			dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2}
+setTimeout(() => {
+	canvas.style.width ="100%";
+	canvas.style.height="100%";
+	canvas.width  = canvas.offsetWidth;
+	canvas.height = canvas.offsetHeight;
+	draw_hand(ctx,canvas.width,canvas.height,step,infor);
+}, 500);

@@ -41,6 +41,7 @@ const bind_invites = async (socket,invites) => {   //[{username:username,online:
     invites.forEach((invite) => {
         if (invite.username2 == getCookie("username")){
             document.getElementById(`accept_invite_${invite.username1}`).onclick = () => {
+                socket.emit("quit_table");
                 socket.emit("accept_invite",{username: invite.username1})
             };
             document.getElementById(`reject_invite_${invite.username1}`).onclick = () => {

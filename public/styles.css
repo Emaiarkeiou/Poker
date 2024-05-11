@@ -191,3 +191,26 @@ body {
 input::placeholder {
     color: rgba(255,255,255,0.65) !important;
 }
+
+
+
+
+#canvas_container {
+    height: 92vh;
+}
+
+.full-screen {
+    height: 100vh !important;
+    width: 100vw !important;
+    -webkit-transition: all 0.3s;
+    -ms-transition: all 0.3s;
+    transition: all 0.3s;
+}
+
+
+  
+.dis-none {
+    transition: opacity 200ms, display 200ms;
+    display: none;
+    opacity: 0;
+}

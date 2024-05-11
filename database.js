@@ -495,7 +495,7 @@ const create_hand = async(tavolo,giro,turno) => {
         INSERT IGNORE INTO Mano (tavolo,giro,turno)
         VALUES (${tavolo},1,${turno})
     `); //giro = 1
-        //turno = dealer +1
+        //turno = 2 (small blind)
 };
 
 const delete_hand = async(tavolo) => {
