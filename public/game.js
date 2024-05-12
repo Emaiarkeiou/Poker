@@ -1,6 +1,6 @@
 import { create_table } from "./remote.js";
 import { getCookie,checkLogin,deleteLogin } from "./cookies.js";
-import { draw_lobby,draw_table,draw_players,transition,draw_hand } from "./canvas.js";
+import { draw_lobby,draw_table,draw_players,transition,draw_hand, draw_your_cards } from "./canvas.js";
 import { render_requests,render_friends,render_invites  } from "./render.js";
 import { bind_friends, bind_requests, bind_invites } from "./bind.js";
 
@@ -23,16 +23,27 @@ const invites_container = document.getElementById("invites_container");
 const logout_b = document.getElementById("logout_b");
 
 const canvas_container = document.getElementById("canvas_container");
+
 const canvas = document.getElementById("canvas");
+const canvas_cards = document.getElementById("canvas_ur_cards");
+const canvas_fiches = document.getElementById("canvas_ur_fiches");
+
 canvas.style.width ="100%";
 canvas.style.height="100%";
+canvas_cards.style.width ="100%";
+canvas_cards.style.height="100%";
+canvas_fiches.style.width ="100%";
+//canvas_fiches.style.height="100%";
 canvas.width  = canvas.offsetWidth;
 canvas.height = canvas.offsetHeight;
+canvas_cards.width  = canvas_cards.offsetWidth;
+canvas_cards.height = canvas_cards.offsetHeight;
+canvas_fiches.width  = canvas_fiches.offsetWidth;
+//canvas_fiches.height = canvas_fiches.offsetHeight;
 
 let width = canvas.width, height = canvas.height;
 const step=(height/50);
-const ctx = canvas.getContext("2d");
-draw_lobby(ctx,width,height,step);
+draw_lobby(canvas,step);
 
 
 
@@ -110,6 +121,25 @@ add_friend_b.onclick = async () => {
 
 //WEBSOCKET
 
+/* DESCRIZIONE MESSAGGI CHE MANDA IL SERVER
+    "request"
+    "invite"
+    "friends"
+
+    "players"
+
+    "start hand"
+
+    "your cards"
+    "hand"          
+    "turn"          dice al client che è il suo turno e manda il turno per verificare
+    "move"          manda le informazioni della mossa fatta: tipo e puntata
+
+    "all cards"     manda tutte le carte dei giocatori in gioco
+    "end hand"      manda il vincitore e dice al client che la mano è finita
+    "error"         manda una stringa con l'errore
+*/
+
 const username = getCookie("username");
 const socket = io();
 socket.emit("login", { username: username });
@@ -133,7 +163,6 @@ socket.on("invite", async(invites) => {
 });
 
 let v_players = [];
-
 socket.on("players", async(players) => { 
 	//informazioni generali dei giocatori del tavolo: username,pronto,ordine,fiches,eliminato
 	console.log("players",players)
@@ -143,18 +172,15 @@ socket.on("players", async(players) => {
 	GESTIRE PULSANTE INVITI, non mostrarlo se è già nel tavolo
 	mostrarlo se si è in un tavolo NON pieno
 	non mostrare gli inviti se si è già in un tavolo
-	
 	*/
 	if (!in_game){
 		create_table_b.classList.add("d-none");
 		invites_container.classList.add("d-none");
 		ready_b.classList.remove("d-none");
 		quit_b.classList.remove("d-none");
-		draw_lobby(ctx,width,height,step);
-		draw_table(ctx,width,height,step,1,1);
-		draw_players(ctx,width,height,step,players,0,0);
-	} else {
-		//draw canvas game
+		draw_lobby(canvas,step);
+		draw_table(canvas,step,1,1);
+		draw_players(canvas,step,players,0,0);
 	};
 });
 
@@ -165,7 +191,13 @@ socket.on("start hand", async(info) => {
 	ready_b.classList.add("d-none");
 	quit_b.classList.add("d-none");
 	ready_b.classList.remove("ready");
-	await transition(canvas_container,canvas,ctx,width,height,step,v_players,navbar,div_friends,div_invites,info);
+	console.log(info.players)
+	await transition(canvas,canvas_fiches,canvas_cards,step,info);
+});
+
+socket.on("hand", async(info) => {	
+	//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
+	draw_hand(canvas,canvas_fiches,step,info);
 });
 
 
@@ -173,6 +205,11 @@ socket.on("start hand", async(info) => {
 socket.on("turn", async(turn) => { //{giro:1,turno:2}
 	console.log(turn)
 });
+
+socket.on("your cards", async(cards) => { //[{id,valore,seme,path} x2]
+	draw_your_cards(canvas_cards,step,cards);
+});
+
 
 
 //LOGOUT
@@ -197,25 +234,30 @@ window.onpageshow = (event) => {
 };
 
 
-
-//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[]}
+/*
+//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
 create_table_b.classList.add("d-none");
 invites_container.classList.add("d-none");
 canvas_container.classList.add("full-screen")
 navbar.classList.add("dis-none");
 div_friends.classList.add("dis-none");
 div_invites.classList.add("dis-none");
-div_moves.classList.remove("d-none");
-canvas.style.width ="100%";
-canvas.style.height="100%";
-canvas.width = canvas.offsetWidth;
-canvas.height = canvas.offsetHeight;
+
 let infor = {carte:[{path:"/cards/7-2.png"},{path:"/cards/7-2.png"},{path:"/cards/7-2.png"}], players:[],
-			dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2}
+			dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2,
+			players:[{username:"aa",ordine:1,fiches:0},{username:"prova",ordine:2,fiches:0},
+			{username:"mirkomaralit",ordine:3,fiches:0},{username:"mirkomarawaw",ordine:3,fiches:0},
+			{username:"prova",ordine:2,fiches:250*5}]
+		}
+
+let cards = [{path:"/cards/14-2.png"},{path:"/cards/9-2.png"}]
 setTimeout(() => {
-	canvas.style.width ="100%";
-	canvas.style.height="100%";
 	canvas.width  = canvas.offsetWidth;
 	canvas.height = canvas.offsetHeight;
-	draw_hand(ctx,canvas.width,canvas.height,step,infor);
+	canvas_fiches.width  = canvas_fiches.offsetWidth;
+	draw_hand(canvas,canvas_fiches,step,infor);
+	canvas_cards.width  = canvas_cards.offsetWidth;
+	canvas_cards.height = canvas_cards.offsetHeight;
+	draw_your_cards(canvas_cards,step,cards);
 }, 500);
+*/

@@ -218,8 +218,8 @@ input::placeholder {
 
 
 #div_moves {
-    background: linear-gradient(to bottom right,rgba(40,98,91,0.5), rgba(18,53,36,0.3));
-    border: 1px solid rgba(18,53,36,0.1);
+    background: linear-gradient(to bottom right,rgba(40,98,91,1), rgba(18,53,36,0.7));
+    border: 1px solid rgba(18,53,36,0);
     border-bottom: 0;
     border-radius: 10px 10px 0 0;
 }
@@ -246,8 +246,6 @@ input::-webkit-inner-spin-button {
     border: none;
 }
 
-
-
 #check_b {
     background: rgba(125,249,255,0.5);
     border-radius: 6px;
@@ -261,8 +259,6 @@ input::-webkit-inner-spin-button {
     -ms-transition: all 0.1s;
     transition: all 0.1s;
 }
-
-
 
 #fold_b {
     background-color: rgba(201,48,63,0.8);
