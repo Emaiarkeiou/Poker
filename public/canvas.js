@@ -124,7 +124,7 @@ const transition = async (canvas_container,canvas,ctx,width,height,step,players,
 
 
 const draw_hand = async (ctx,width,height,step,info) => {     
-    //{carte:[{id,valore,seme,path}], dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2}
+    //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
     let c = {x:width/2,y:height/2};     //centro del canvas
     console.log(window.innerWidth,window.innerHeight)
     console.log(width,height,c.x,c.y)

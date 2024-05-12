@@ -69,10 +69,30 @@ app.post("/create_table", async(req, res) => {
     };
 });
 
+const logout = async (socket_id) => {
+    try {
+        const player = (await db.get_username(socket_id))[0];
+        const friends_list = await get_friends(player.username);
+        const invited_list = await get_invites(socket_id); //non spostare
+        
+        await db.delete_player(socket_id);
+
+        await Promise.all(friends_list.map(async(friend) => {
+            if (friend.online) {
+                io.to((await db.get_socket(friend.username))[0].socket).emit("friends",await get_friends(friend.username));
+            };
+        }));
+
+        await Promise.all(invited_list.map(async(invite) => {
+            io.to(invite.giocatore1).emit("invite",await get_invites(invite.giocatore1));
+            io.to(invite.giocatore2).emit("invite",await get_invites(invite.giocatore2));
+        }));    
+    } catch {};
+};
 
 
 
-
+// GIOCATORI, INVITI AL TAVOLO, RICHIESTE D'AMICIZIA
 
 const get_requests = async(username) => {
     return await db.get_requests(username);
@@ -93,7 +113,6 @@ const get_friends = async(username) => {
     return amici; //lista di {username:username,online:0/1}
 };
 
-
 const get_invites = async(socket) => {  //[{giocatore1:socket,giocatore2:socket,username1:username,username2:username,tavolo},]
     let invites = await Promise.all((await db.get_invites(socket)).map(async (invite) => {
         invite.username1 = (await db.get_username(invite.giocatore1))[0].username;
@@ -108,7 +127,12 @@ const get_players_by_table = async(tavolo) => {
     return await db.get_players_by_table(tavolo);
 };
 
-const get_hand = async(tavolo,giro) => { //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}]}
+
+
+// INFORMAZIONI DELLA MANO
+
+const get_hand_info = async(tavolo) => { 
+    //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
     let info = {};
     const inftavolo = (await db.get_table(tavolo))[0];
     info.n_mano = inftavolo.n_mano;
@@ -117,23 +141,23 @@ const get_hand = async(tavolo,giro) => { //{n_mano:,small_blind:,dealer:,giro:,t
     const mano = (await db.get_hand(tavolo))[0];
     info.giro = mano.giro;
     info.turno = mano.turno;
-    let puntate_giro = await db.get_round_bets(tavolo,giro);
+    let puntate_giro = await db.get_round_bets(tavolo,mano.giro);
     puntate_giro = await Promise.all(puntate_giro.map(async(puntata) => {
         puntata.username = (await db.get_username(puntata.giocatore))[0].username;
         return puntata;
     }));
     info.puntate_giro = puntate_giro;
     info.somma_tot = (await db.get_bets_sum(tavolo))[0]["SUM(somma)"];
-    //tavolo information: dealer/n_mano, //gestire chi parte prima, turno
-                        //turno(il primo turno è del 2* giocatore, lo small blind), 
-                        //giro
-                        //small blind fiches = n_mano*0.5
-    //hand information: //puntate del giro, somma totale di tutte le puntate non del giro, //carte
-    
-    info.carte = await get_hand_cards(tavolo,giro) //[{id,valore,seme,path}]
+
+    info.carte = await get_hand_cards(tavolo,mano.giro) //[{id,valore,seme,path}]
+    info.players = await get_players_by_table(tavolo);
     return info; 
     //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}]}
 };
+
+
+
+// CARTE
 
 const get_hand_cards = async(tavolo,giro) => {
     //in base al giro fa vedere n carte
@@ -157,6 +181,19 @@ const get_player_cards = async(socket) => {
     return [await db.get_player_card(socket,1),await db.get_player_card(socket,2)];
 };
 
+const get_players_cards = async(tavolo) => {
+    let all_cards = {};
+    await Promise.all((await get_players_by_table(tavolo)).map(async(player) => {
+        let carte = await get_player_cards(await db.get_socket(player.username));
+        all_cards[player.ordine] = carte;
+    }));
+    return all_cards;      //{ordine : [ {id,valore,seme,path} , {id,valore,seme,path} ], x n}
+};
+
+
+
+// PUNTI E VINCITORI
+
 const calcola_punti = async(tavolo,carte) => {
     for (let i = 1; i<6 ; i++) {
         carte.push(await db.get_hand_card(tavolo,i))
@@ -165,7 +202,6 @@ const calcola_punti = async(tavolo,carte) => {
 };
 
 const calcola_vincitori = async(tavolo,players) => {
-    
     let punti = await Promise.all(players.map(async(player) => {
         return await calcola_punti(tavolo,await get_player_cards(player.socket));    //push del punteggio del giocatore
     }));
@@ -178,16 +214,9 @@ const calcola_vincitori = async(tavolo,players) => {
     return vincitori;
 };
 
-const get_players_cards = async(tavolo) => {
-    let all_cards = {};
-    await Promise.all((await get_players_by_table(tavolo)).map(async(player) => {
-        let carte = await get_player_cards(await db.get_socket(player.username));
-        all_cards[player.ordine] = carte;
-    }));
-    return all_cards;      //{ordine : [ {id,valore,seme,path} , {id,valore,seme,path} ], x n}
-};
 
 
+// GESTIONE TAVOLO E MANI
 
 const scala_ordine = async(tavolo) => {
     const lunghezza = (await io.in(tavolo).fetchSockets()).length;
@@ -210,13 +239,9 @@ const scala_ordine = async(tavolo) => {
     };
 };
 
-
-
-
 const start_hand = async(tavolo) => {
     await db.delete_invites_table(tavolo);  //delete all invites to table
     const sockets = await io.in(tavolo).fetchSockets(); //get all sockets in table
-    let dealer = (await db.get_table(tavolo))[0].dealer;
     await db.create_hand(tavolo,1,2);    //create mano con turno=2 e giro=1
 
     let carte = await db.get_n_cards((sockets.length*2)+5);   //carte
@@ -228,8 +253,7 @@ const start_hand = async(tavolo) => {
         await db.update_player_cards(socket.id,carte.splice(0,2));
     }));
 
-    io.to(tavolo).emit("start hand",await get_hand(tavolo,1));    
-    io.to(tavolo).emit("players",await get_players_by_table(tavolo));
+    io.to(tavolo).emit("start hand",await get_hand_info(tavolo));    
     io.to((await db.get_player_by_order(tavolo,2)).socket).emit("turn",{giro:1,turno:2});  //inizia il giocatore 2 del giro 1, lo small blind
 };
 
@@ -256,38 +280,17 @@ const end_hand = async(tavolo,vincitori) => {
     io.to(tavolo).emit("players",await get_players_by_table(tavolo));
 };
 
-const logout = async (socket_id) => {
-    try {
-        const player = (await db.get_username(socket_id))[0];
-        const friends_list = await get_friends(player.username);
-        const invited_list = await get_invites(socket_id); //non spostare
-        
-        await db.delete_player(socket_id);
-
-        await Promise.all(friends_list.map(async(friend) => {
-            if (friend.online) {
-                io.to((await db.get_socket(friend.username))[0].socket).emit("friends",await get_friends(friend.username));
-            };
-        }));
-
-        await Promise.all(invited_list.map(async(invite) => {
-            io.to(invite.giocatore1).emit("invite",await get_invites(invite.giocatore1));
-            io.to(invite.giocatore2).emit("invite",await get_invites(invite.giocatore2));
-        }));    
-    } catch {};
-};
-
 /* DESCRIZIONE MESSAGGI CHE MANDA IL SERVER
     "request"       manda tutte le richieste di amicizia mandate o ricevute dal client
     "invite"        manda tutti gli inviti al tavolo mandati o ricevuti dal client
     "friends"       manda tutti gli username e stati online degli amici del client
 
-    "players"       manda le informazioni generali dei giocatori del tavolo: pronto, fiches, ordine(per disegnarli in lobby e in gioco)
+    "players"       manda le informazioni generali dei giocatori del tavolo: pronto, fiches, ordine(per disegnarli in lobby)
 
-    "start hand"    manda le informazioni generali della mano: piatto, dealer, small blind, turno
+    "start hand"    manda le informazioni generali della mano: piatto, dealer, small blind, turno,(comprende "players")
 
     "your cards"    manda le carte del client con id e immagine
-    "hand"          manda le informazioni generali della mano: piatto, dealer, small blind, turno, giro, carte presenti
+    "hand"          manda le informazioni generali della mano: piatto, dealer, small blind, turno, giro, carte presenti,(comprende "players")
     "turn"          dice al client che è il suo turno e manda il turno per verificare
     "move"          manda le informazioni della mossa fatta: tipo e puntata
 
@@ -323,26 +326,27 @@ io.of("/").adapter.on("leave-room", async (room, socket_id) => {    //room=tavol
         if (!((await io.in(room).fetchSockets()).length)) {     //se non rimane nessuno
             await db.delete_table(room);
         } else {
+            await db.delete_invites_player(socket_id);              //inviti
             if ((await db.get_hand(room)).length) { //non spostare      //se si è in una mano, crea un placeholder
                 if ((await io.in(room).fetchSockets()).length == 1) {   //se ne rimane 1
                     in_gioco = await db.get_players_in_hand(room);
-                    await end_hand(room,[in_gioco[0].ordine]);
+                    await end_hand(room,[in_gioco[0].ordine]);      //end_hand
                 } else {
                     await db.create_placeholder(socket_id,room,player.ordine,"True");       //socket,tavolo,ordine,eliminato
                     let mano = (await db.get_hand(room))[0];         //turno = indice+1 di in_gioco
+                    console.log(in_gioco[mano.turno-1].ordine , player.ordine);
                     if (in_gioco[mano.turno-1].ordine == player.ordine) {  //se era il turno di chi ha abbandonato
                         in_gioco = await db.get_players_in_hand(room);      //lista dei giocatori ancora in gioco [{socket,ordine,fiches},]
                         io.to(in_gioco[mano.turno].socket).emit("turn",{turno:mano.turno,giro:mano.giro});       //manda turno e giro per conferma
                     } else if (in_gioco[mano.turno].ordine > player.ordine) {
                         await db.update_hand_turn(room,"turno - 1");     //turno scala
                     };
+                    io.to(room).emit("hand",await get_hand_info(room));     //hand
                 };
             } else {
                 await scala_ordine(room);
+                io.to(room).emit("players",await get_players_by_table(room));
             };
-
-            await db.delete_invites_player(socket_id);              //inviti
-            io.to(room).emit("players",await get_players_by_table(room));
         };
     };
 });
@@ -547,7 +551,6 @@ io.on("connection", (socket) => {
             turno -= 1;
         };
         io.to(tavolo).emit("move",{tipo:tipo,puntata:(await get_bet(socket.id,tavolo,giro))[0]});
-        io.to(tavolo).emit("players",await get_players_by_table(tavolo));
 
         const in_gioco = await db.get_players_in_hand(tavolo);      //lista dei giocatori ancora in gioco [{socket,ordine,fiches},]
         
@@ -557,7 +560,7 @@ io.on("connection", (socket) => {
                     await end_hand(tavolo,in_gioco[0].ordine);              //await end_hand(tavolo,ordine_vincitore)
                 } else {
                     if (await db.check_allin(tavolo)) {                                 //else if all in
-                        io.to(tavolo).emit("hand",await get_hand(tavolo, 4));        //aggiunge a hand le nuove carte, cambiando il giro a 4
+                        io.to(tavolo).emit("hand",await get_hand_info(tavolo));        //aggiunge a hand le nuove carte, cambiando il giro a 4
                     };
                     let vincitori = await calcola_vincitori(tavolo,in_gioco);       //calcolo vincitore,tra le sockets in gioco ,restituisce l'ordine dei vincitori
                     await end_hand(tavolo,vincitori);    //await end_hand(tavolo,ordine_vincitori)
@@ -578,7 +581,7 @@ io.on("connection", (socket) => {
                     io.to(player.socket).emit("your cards",await get_player_cards(player.socket));
                 }));
             };
-            io.to(tavolo).emit("hand",await get_hand(tavolo, giro));    //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}]}
+            io.to(tavolo).emit("hand",await get_hand_info(tavolo));    //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}]}
             io.to(in_gioco[turno].socket).emit("turn",{turno:turno,giro:giro});       //manda turno e giro per conferma
         };
     });

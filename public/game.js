@@ -134,7 +134,8 @@ socket.on("invite", async(invites) => {
 
 let v_players = [];
 
-socket.on("players", async(players) => { //informazioni generali dei giocatori del tavolo: username,pronto,ordine,fiches,eliminato
+socket.on("players", async(players) => { 
+	//informazioni generali dei giocatori del tavolo: username,pronto,ordine,fiches,eliminato
 	console.log("players",players)
 	v_players = players;
 	/*
@@ -158,14 +159,13 @@ socket.on("players", async(players) => { //informazioni generali dei giocatori d
 });
 
 
-socket.on("start hand", async(info) => {	//{carte:[], dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2}
+socket.on("start hand", async(info) => {	
+	//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
 	in_game = true;
 	ready_b.classList.add("d-none");
 	quit_b.classList.add("d-none");
 	ready_b.classList.remove("ready");
 	await transition(canvas_container,canvas,ctx,width,height,step,v_players,navbar,div_friends,div_invites,info);
-	//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}]}
-	//RICORDARE DI TOGLIERE DA SOMMA TOT, LE PUNTATE DEL GIRO CORRENTE
 });
 
 
@@ -191,14 +191,14 @@ socket.on("error", (error) => {
 
 window.onpageshow = (event) => {
 	if (event.persisted) {
-		console.log("awg")
+		console.log("a")
 	  	window.location.reload();
 	};
 };
 
 
 
-//{carte:[], dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2}
+//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[]}
 create_table_b.classList.add("d-none");
 invites_container.classList.add("d-none");
 canvas_container.classList.add("full-screen")
@@ -210,7 +210,7 @@ canvas.style.width ="100%";
 canvas.style.height="100%";
 canvas.width = canvas.offsetWidth;
 canvas.height = canvas.offsetHeight;
-let infor = {carte:[], 
+let infor = {carte:[{path:"/cards/7-2.png"},{path:"/cards/7-2.png"},{path:"/cards/7-2.png"}], players:[],
 			dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2}
 setTimeout(() => {
 	canvas.style.width ="100%";

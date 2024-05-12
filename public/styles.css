@@ -184,6 +184,10 @@ body {
     background: #2a6c65;
     border: none;
 }
+
+
+
+
 input::placeholder {
     color: rgba(255,255,255,0.65) !important;
 }
@@ -218,4 +222,58 @@ input::placeholder {
     border: 1px solid rgba(18,53,36,0.1);
     border-bottom: 0;
     border-radius: 10px 10px 0 0;
+}
+
+
+#bet {
+    background: rgba(125,249,255,0.1);
+    border: none;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+#bet_b {
+    background: rgba(125,249,255,0.5);
+    border: none;
+}
+
+#bet_b:hover {
+    background: rgba(125,249,255,0.7);
+    border: none;
+}
+
+
+
+#check_b {
+    background: rgba(125,249,255,0.5);
+    border-radius: 6px;
+    border:none;
+}
+
+#check_b:hover {
+    background: rgba(125,249,255,0.6);
+    transform: scale(1.01);
+    -webkit-transition: all 0.1s;
+    -ms-transition: all 0.1s;
+    transition: all 0.1s;
+}
+
+
+
+#fold_b {
+    background-color: rgba(201,48,63,0.8);
+    border-radius: 6px;
+    border:none;
+}
+
+#fold_b:hover {
+    background-color: rgba(201,48,63,0.9);
+    transform: scale(1.01);
+    -webkit-transition: all 0.1s;
+    -ms-transition: all 0.1s;
+    transition: all 0.1s;
 }
