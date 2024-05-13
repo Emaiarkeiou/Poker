@@ -10,6 +10,9 @@ if (!(await checkLogin())) {
 document.getElementById("navbar_username").innerText = getCookie("username");
 
 let in_game = false;
+let giro_turno = {};
+let inf = {};
+
 const navbar = document.getElementById("navbar");
 const div_friends = document.getElementById("div_friends");
 const div_invites = document.getElementById("div_invites");
@@ -23,6 +26,7 @@ const invites_container = document.getElementById("invites_container");
 const check_b = document.getElementById("check_b");
 const fold_b = document.getElementById("fold_b");
 const bet_b = document.getElementById("bet_b");
+const bet_in = document.getElementById("bet");
 
 const logout_b = document.getElementById("logout_b");
 
@@ -93,13 +97,6 @@ ready_b.onclick = async () => {
 		ready_b.classList.remove("ready");
 	};
 };
-
-
-
-
-
-
-
 
 
 
@@ -192,6 +189,7 @@ socket.on("players", async(players) => {
 socket.on("start hand", async(info) => {	
 	//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
 	in_game = true;
+	inf = info;
 	ready_b.classList.add("d-none");
 	quit_b.classList.add("d-none");
 	ready_b.classList.remove("ready");
@@ -201,6 +199,8 @@ socket.on("start hand", async(info) => {
 
 socket.on("hand", async(info) => {	
 	//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
+	inf = info;
+	bet.readonly = false;
 	check_b.disabled = true;
 	fold_b.disabled = true;
 	bet_b.disabled = true;
@@ -210,12 +210,41 @@ socket.on("hand", async(info) => {
 
 
 socket.on("turn", async(turn) => { //{giro:1,turno:2}
-	console.log("aas")
-	check_b.disabled = false;
-	fold_b.disabled = false;
+	giro_turno = turn;
+	console.log("your turnn")
+	if (turn.giro==1 && turn.turno==2) {
+		bet_in.value = inf.small_blind;			//small blind
+		bet.readonly = true;
+	} else if (inf.players.length == 2) {
+		if (turn.giro==1 && turn.turno==1) {
+			bet.readonly = true;
+			bet_in.value = inf.small_blind*2;	//big blind
+		};
+	} else if (turn.giro==1 && turn.turno==3) {
+		bet.readonly = true;
+		bet_in.value = inf.small_blind*2;		//big blind
+	} else {
+		check_b.disabled = false;
+		fold_b.disabled = false;
+	};
 	bet_b.disabled = false;
-	//socket.emit("move",{});
 });
+
+socket.on("move", async(turn) => { //{giro:1,turno:2}
+	console.log("moveee");
+});
+
+check_b.onclick = async () => {
+	socket.emit("move",{tipo:"check",giro:giro_turno.giro,turno:giro_turno.turno,somma:0});
+};
+
+fold_b.onclick = async () => {
+	socket.emit("move",{tipo:"fold",giro:giro_turno.giro,turno:giro_turno.turno,somma:0});
+};
+bet_b.onclick = async () => {
+
+	socket.emit("move",{tipo:"check",giro:giro_turno.giro,turno:giro_turno.turno,somma:0});
+};
 
 socket.on("your cards", async(cards) => { //[{id,valore,seme,path} x2]
 	draw_your_cards(canvas_cards,step,cards);
@@ -273,5 +302,4 @@ setTimeout(() => {
 	canvas_cards.height = canvas_cards.offsetHeight;
 	draw_your_cards(canvas_cards,step,cards);
 }, 500);
-
 */

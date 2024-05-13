@@ -532,7 +532,7 @@ const get_hand = async(tavolo) => {
 
 const create_bet = async(socket, tavolo, giro, somma) => {
     await executeQuery(`
-        INSERT INTO PUNTATA (giocatore, mano, giro, somma)
+        INSERT INTO Puntata (giocatore, mano, giro, somma)
         VALUES ('${socket}',${tavolo},${giro},${somma})
     `); //non IGNORE per controllare se esiste la puntata
 };

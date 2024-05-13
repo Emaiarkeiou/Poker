@@ -335,13 +335,17 @@ io.of("/").adapter.on("leave-room", async (room, socket_id) => {    //room=tavol
                     await db.create_placeholder(socket_id,room,player.ordine,"True");       //socket,tavolo,ordine,eliminato
                     let mano = (await db.get_hand(room))[0];         //turno = indice+1 di in_gioco
                     console.log(in_gioco[mano.turno-1].ordine , player.ordine);
+                    
                     if (in_gioco[mano.turno-1].ordine == player.ordine) {  //se era il turno di chi ha abbandonato
                         in_gioco = await db.get_players_in_hand(room);      //lista dei giocatori ancora in gioco [{socket,ordine,fiches},]
+                        io.to(room).emit("hand",await get_hand_info(room));     //hand
                         io.to(in_gioco[mano.turno].socket).emit("turn",{turno:mano.turno,giro:mano.giro});       //manda turno e giro per conferma
                     } else if (in_gioco[mano.turno].ordine > player.ordine) {
                         await db.update_hand_turn(room,"turno - 1");     //turno scala
+                        io.to(room).emit("hand",await get_hand_info(room));     //hand
+                    } else{
+                        io.to(room).emit("hand",await get_hand_info(room));     //hand
                     };
-                    io.to(room).emit("hand",await get_hand_info(room));     //hand
                 };
             } else {
                 await scala_ordine(room);
@@ -528,13 +532,14 @@ io.on("connection", (socket) => {
             small-blind
             big-blind
         */
-        const giro = parseInt(m.giro);
         const tipo = m.tipo;
+        let giro = parseInt(m.giro);
         const fiches_puntate = parseInt(m.somma);
         const tavolo = [...socket.rooms][1];
         let turno = parseInt(m.turno); //turno mandato dal giocatore "non vero"
         console.log("turno gioc",turno)
         turno = (await db.get_hand(tavolo))[0].turno;       //turno nel database affidabile
+
         console.log("turno db",turno)
         if (["check","call","raise","all-in","small-blind","big-blind","fold"].includes(tipo)) { //tipo? check allin raise call fold small blind big blind
             if (await db.check_fiches(socket.id,fiches_puntate)) {              //check che il giocatore abbia abbastanza fiches
