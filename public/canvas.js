@@ -121,12 +121,9 @@ const transition = async (canvas,canvas_fiches,canvas_cards,step,info) => {
 	        document.getElementById("div_invites").classList.add("dis-none");
             document.getElementById("div_bottom").classList.remove("d-none");
             setTimeout(() => {
-
                 canvas.width  = canvas.offsetWidth;
                 canvas.height = canvas.offsetHeight;
-
                 canvas_fiches.width  = canvas_fiches.offsetWidth;
-
                 canvas_cards.width  = canvas_cards.offsetWidth;
                 canvas_cards.height = canvas_cards.offsetHeight;
                 draw_hand(canvas,canvas_fiches,step,info);
@@ -140,13 +137,16 @@ const transition = async (canvas,canvas_fiches,canvas_cards,step,info) => {
 
 const draw_hand = async (canvas,canvas_fiches,step,info) => {    
     const ctx = canvas.getContext("2d");
-    const ctx_fiches = canvas_fiches.getContext("2d");
     let width = canvas.width, height = canvas.height;
-    //{small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,players:[{username,ordine,fiches,eliminato}]}
+    //{small_blind:,dealer:,giro:,turno:,puntate_giro:[{username,giocatore,mano,giro,somma}],somma_tot:,players:[{username,ordine,fiches,eliminato}]}
 
-    //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
+    /*
+	{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:[{username,giocatore,mano,giro,somma}],
+	somma_tot:, carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
+	*/
     let c = {x:width/2,y:height/2};     //centro del canvas
 
+    ctx.clearRect(0,0, width,height);
     // TAVOLO
     const grad=ctx.createLinearGradient(0, 0, width,height); 	//center,center,innerradius,center,center,outerradius
     grad.addColorStop(0, "#28625b");
@@ -161,11 +161,13 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
     
     const cardwidth = (1.8*step*4);
     const cardheight = (2.5*step*4);
-    ctx.strokeStyle = "#37877f";
 
     const total_width = cardwidth*7 + step*15;
     const total_height = cardwidth*3 + step*3;
-    ctx.beginPath();    
+    ctx.beginPath();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#37877f";
+    ctx.lineWidth = 1;
     ctx.roundRect(c.x-total_width/2, c.y-total_height/2,width-2*(c.x-total_width/2),height-2*(c.y-total_height/2),step/2); 
     ctx.stroke();
 
@@ -225,7 +227,9 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
     // PLAYER
 
     // YOU
+    const ctx_fiches = canvas_fiches.getContext("2d");
     let widthf = canvas_fiches.width, heightf = canvas_fiches.height;
+    ctx_fiches.clearRect(0,0,widthf,heightf);
     let c_f = {x:widthf/2, y:heightf/2}
     let player = info.players.find((player) => player.username == getCookie("username"));
 
@@ -361,14 +365,13 @@ const draw_your_cards = (canvas,step,cards) => {
     let width = canvas.width, height = canvas.height;
 
     let c = {x:width/2,y:height/2};     //centro del canvas
-    console.log("awdaw")
+
     // PLACEHOLDER CARTE
     const cardwidth = (1.8*step*4.5);
     const cardheight = (2.5*step*4.5);
     ctx.strokeStyle = "#37877f";
     ctx.shadowColor = "#7df9ff";
     for (let i=0;i<2;i++) {
-        console.log("a")
         ctx.beginPath();
 
         ctx.shadowBlur = 0;

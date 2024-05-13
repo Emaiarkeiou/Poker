@@ -26,7 +26,13 @@ const invites_container = document.getElementById("invites_container");
 const check_b = document.getElementById("check_b");
 const fold_b = document.getElementById("fold_b");
 const bet_b = document.getElementById("bet_b");
-const bet_in = document.getElementById("bet");
+const bet_in = document.getElementById("bet_in");
+
+bet_in.onchange = () => {
+	if (parseInt(bet_in.value) < parseInt(bet_in.min)) {
+		bet_in.value = bet_in.min;
+	};
+};
 
 const logout_b = document.getElementById("logout_b");
 
@@ -76,8 +82,7 @@ create_table_b.onclick = async() => {
 
 quit_b.onclick = async () => {
 	socket.emit("quit_table");
-	ctx.clearRect(0,0,width,height);
-	draw_lobby(ctx,width,height,step);
+	draw_lobby(canvas,step);
 	create_table_b.classList.remove("d-none");
 	invites_container.classList.remove("d-none");
 	ready_b.classList.add("d-none");
@@ -187,7 +192,11 @@ socket.on("players", async(players) => {
 
 
 socket.on("start hand", async(info) => {	
-	//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
+	/*
+	{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:[{username,giocatore,mano,giro,somma}],
+	somma_tot:, carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
+	*/
+	console.log("start hand")
 	in_game = true;
 	inf = info;
 	ready_b.classList.add("d-none");
@@ -198,9 +207,15 @@ socket.on("start hand", async(info) => {
 });
 
 socket.on("hand", async(info) => {	
-	//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
+	/*
+	{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:[{username,giocatore,mano,giro,somma}],
+	somma_tot:, carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
+	*/
+	console.log("hand")
 	inf = info;
-	bet.readonly = false;
+	bet_in.readOnly = false;
+
+	//check puntate se 0 del giro
 	check_b.disabled = true;
 	fold_b.disabled = true;
 	bet_b.disabled = true;
@@ -208,42 +223,67 @@ socket.on("hand", async(info) => {
 });
 
 
-
 socket.on("turn", async(turn) => { //{giro:1,turno:2}
 	giro_turno = turn;
-	console.log("your turnn")
-	if (turn.giro==1 && turn.turno==2) {
+	console.log("your turn ",turn)
+	if (turn.giro==1 && inf.puntate_giro.length==0) {
 		bet_in.value = inf.small_blind;			//small blind
-		bet.readonly = true;
-	} else if (inf.players.length == 2) {
-		if (turn.giro==1 && turn.turno==1) {
-			bet.readonly = true;
-			bet_in.value = inf.small_blind*2;	//big blind
+		bet_in.readOnly = true;
+	} else if (turn.giro==1 && inf.puntate_giro.length==1) {
+		bet_in.value = inf.small_blind*2;	//big blind
+		bet_in.readOnly = true;
+	} else {	//se non è small o big blind
+		let somme = inf.puntate_giro.map((puntata) => {return puntata.somma});
+		let min = Math.max(0,...somme);
+		let puntata = inf.puntate_giro.find((puntata) => puntata.username == getCookie("username"));
+		if (puntata) {
+			min = min>puntata.somma? min-puntata.somma:min;
+			bet_in.readOnly = true;
 		};
-	} else if (turn.giro==1 && turn.turno==3) {
-		bet.readonly = true;
-		bet_in.value = inf.small_blind*2;		//big blind
-	} else {
-		check_b.disabled = false;
+		bet_in.value = min;
+		bet_in.min = min;
+		check_b.disabled = min? true:false;
 		fold_b.disabled = false;
+		console.log("min", min);
 	};
+	console.log(bet_in.readOnly,bet_in.min);
 	bet_b.disabled = false;
 });
 
-socket.on("move", async(turn) => { //{giro:1,turno:2}
+socket.on("move", async(move) => { //{giro:1,turno:2}
 	console.log("moveee");
 });
 
 check_b.onclick = async () => {
 	socket.emit("move",{tipo:"check",giro:giro_turno.giro,turno:giro_turno.turno,somma:0});
+	check_b.disabled = true;
 };
 
 fold_b.onclick = async () => {
 	socket.emit("move",{tipo:"fold",giro:giro_turno.giro,turno:giro_turno.turno,somma:0});
+	fold_b.disabled = true;
 };
-bet_b.onclick = async () => {
 
-	socket.emit("move",{tipo:"check",giro:giro_turno.giro,turno:giro_turno.turno,somma:0});
+bet_b.onclick = async () => {
+	let move = "";
+	let player = inf.players.find((player) => player.username == getCookie("username"));
+	let somma = bet_in.value<bet_in.min? bet_in.min:bet_in.value;
+	if (giro_turno.giro==1 && inf.puntate_giro.length==0) {
+		move = "small-blind";
+	} else if (giro_turno.giro==1 && inf.puntate_giro.length==1) {
+		move = "big-blind";
+	} else {
+		if (somma>player.fiches) {
+			somma = player.fiches;
+			move = "all-in";
+		} else if(somma == bet_in.min) {
+			move = "call";
+		} else if(somma > bet_in.min) {
+			move = "raise";
+		};
+	};
+	bet_b.disabled = true;
+	socket.emit("move",{tipo:move, giro:giro_turno.giro, turno:giro_turno.turno, somma:somma});
 };
 
 socket.on("your cards", async(cards) => { //[{id,valore,seme,path} x2]

@@ -63,8 +63,8 @@
 
             <div class="d-flex row col-3 px-4 py-2 m-0 h-50">
               
-              <button id="check_b" type="button" class="btn btn-primary p-0 my-2"><b>Bussa</b></button>
-              <button id="fold_b" type="button" class="btn btn-primary p-0 my-2"><b>Lascia</b></button>
+              <button id="check_b" type="button" class="btn btn-primary p-0 my-2" disabled><b>Bussa</b></button>
+              <button id="fold_b" type="button" class="btn btn-primary p-0 my-2" disabled><b>Lascia</b></button>
             </div>
             
             <div class="d-flex row col-5 px-4 m-0 h-100">
@@ -78,8 +78,8 @@
               </canvas>
 
               <div class="col-12 input-group p-0 m-0">
-                <input id="bet" type="number" class="form-control shadow-none text-light py-0 my-2" maxlength="30" placeholder="Puntata" aria-label="Input group example" aria-describedby="basic-addon1">
-                <button id="bet_b" type="button" class="py-0 my-2 btn btn-primary">
+                <input id="bet_in" type="number" class="form-control shadow-none text-light py-0 my-2" maxlength="30" min="0" placeholder="Puntata">
+                <button id="bet_b" type="button" class="py-0 my-2 btn btn-primary" disabled>
                   <b>Punta</b>
                 </button>
               </div>

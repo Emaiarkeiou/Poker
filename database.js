@@ -572,13 +572,13 @@ const get_round_bets = async(tavolo,giro) => {
 };
 
 const check_bets = async(tavolo,giro) => {
-    // check dei giocatori che devono ancora puntare
+    // check dei giocatori che devono ancora raggiungere la puntata
     // ritorna il numero dei giocatori
     return (await executeQuery(`
         SELECT Giocatore.socket FROM Puntata, Giocatore
         WHERE Puntata.giocatore = Giocatore.socket
             AND Puntata.mano = ${tavolo}
-            AND Puntato.giro = ${giro}
+            AND Puntata.giro = ${giro}
             AND Giocatore.eliminato = False
             AND Puntata.somma < (SELECT MAX(somma) FROM Puntata WHERE giro = ${giro} AND Puntata.mano = ${tavolo}) 
             AND Giocatore.fiches > 0

@@ -194,23 +194,103 @@ const get_players_cards = async(tavolo) => {
 
 // PUNTI E VINCITORI
 
-const calcola_punti = async(tavolo,carte) => {
+const calcola_punti_player = async(tavolo,carte,ordine) => {
+    /*
+    {scala_reale:1, scala_colore:13-6, poker:14-2, full:[14-2,14-2], colore:1, scala:14-6, tris:14-2, d_coppia:[14-2,14-2], coppia:14-2, c_alta:14-2}
+    */
+    let punti = {ordine:ordine,    scala_reale:0,scala_colore:0,poker:0,full:[0,0],colore:0,scala:0,tris:0,d_coppia:[0,0],coppia:0,c_alta:0};
+
+    punti.c_alta = carte.reduce((max, carta) => {return max > carta.valore ? max : carta.valore;});
+
     for (let i = 1; i<6 ; i++) {
-        carte.push(await db.get_hand_card(tavolo,i))
+        carte.push(await db.get_hand_card(tavolo,i));
     };
-    return 1;
+    carte = carte.sort((a, b) => b.valore - a.valore);  //ordine decrescente
+
+    for (let seme=1;seme<=4;seme++) {
+        let ripet = (carte.filter(carta=> carta.valore == seme)).length;        //colore
+        if (ripet >= 5) {
+            punti.colore = 1;
+            break;
+        };
+    };
+
+    for (let val = 2; val<=carte[0].valore;val++) {                            //poker, full, tris, doppiacoppia, coppia
+        let ripet = (carte.filter(carta=> carta.valore == val)).length;
+        switch (ripet) {
+            case 2:
+                punti.full[1] = val;
+                punti.d_coppia[1] = val;
+                (punti.d_coppia.sort()).reverse();
+                punti.coppia = val;
+                break;
+            case 3:
+                punti.full[0] = val;
+                punti.tris = val;
+                break;
+            case 4:
+                punti.poker = val;
+                break;
+        };
+    };
+
+    const len_scala = 5;
+
+    for (let i=(carte.length-len_scala);i>0;i--) {      //scala reale, scala colore, scala
+        let scala = true;
+        let colore = true;
+        for (let j=0;j<len_scala;j++) {
+            if (carte[i+j].valore != carte[i].valore - j) {
+                scala = false;
+                break;
+            };
+            if (carte[i+j].seme != carte[i].seme) {
+                colore = false;
+            };
+        };
+        if (scala) {
+            if (colore) {
+                if (carte[i].valore == 14) {
+                    punti.scala_reale = 1;
+                } else {
+                    punti.scala_colore = carte[i].valore;
+                };
+                break;
+            } else {
+                punti.scala = carte[i].valore;
+            };
+        };
+    };
+    console.log(punti);
+    return punti;
 };
 
 const calcola_vincitori = async(tavolo,players) => {
+    let vincitori = [];
     let punti = await Promise.all(players.map(async(player) => {
-        return await calcola_punti(tavolo,await get_player_cards(player.socket));    //push del punteggio del giocatore
+        return await calcola_punti_player(tavolo,await get_player_cards(player.socket),player.ordine);    //push del punteggio del giocatore
     }));
 
-    let max = Math.max(...punti);
-    let indici = punti.reduce((r, v, i) => r.concat(v === max ? i : []), []);       //lista indici di chi ha i punti massimi
-    let vincitori = await Promise.all(indici.map(async(i) => {
-        return players[i].ordine;                           //push dell'ordine
-    }));
+    let doppie = ["full","d_coppia"]
+    let categorie = ["scala_reale","scala_colore","poker","full","colore","scala","tris","d_coppia","coppia","c_alta"];
+
+    for (const cat of categorie) {
+        if (doppie.includes(cat)) {
+            vincitori = punti.filter(punteggio => punteggio[cat].every(Boolean));
+        } else {
+            vincitori = punti.filter(punteggio => punteggio[cat]);
+        };
+        if (vincitori.length) {
+            if (vincitori.length == 1) {
+                break;
+            } else {
+                punti = vincitori;
+            };
+        };
+    };
+
+    vincitori = vincitori.map((vinc) => vinc.ordine);
+    console.log("vinc",vincitori)
     return vincitori;
 };
 
@@ -258,11 +338,13 @@ const start_hand = async(tavolo) => {
 };
 
 const end_hand = async(tavolo,vincitori) => {
+    console.log("VINCITORIIIII")
     io.to(tavolo).emit("all cards",await get_players_cards(tavolo));
     io.to(tavolo).emit("end hand",{vincitori:vincitori});
     await Promise.all(vincitori.map(async(vincitore) => {    //vincitore = ordine del player
         let somma = (await db.get_bets_sum(tavolo))[0]["SUM(somma)"];
         let player = await db.get_player_by_order(tavolo,vincitore);
+        console.log("vincitore: ",(await db.get_username(player.socket))[0].username);
         await db.update_fiches(player.socket, "fiches + " + Math.floor(somma/vincitori.length))
     }));
     await db.delete_hand(tavolo);                   //delete mano
@@ -537,10 +619,8 @@ io.on("connection", (socket) => {
         const fiches_puntate = parseInt(m.somma);
         const tavolo = [...socket.rooms][1];
         let turno = parseInt(m.turno); //turno mandato dal giocatore "non vero"
-        console.log("turno gioc",turno)
         turno = (await db.get_hand(tavolo))[0].turno;       //turno nel database affidabile
 
-        console.log("turno db",turno)
         if (["check","call","raise","all-in","small-blind","big-blind","fold"].includes(tipo)) { //tipo? check allin raise call fold small blind big blind
             if (await db.check_fiches(socket.id,fiches_puntate)) {              //check che il giocatore abbia abbastanza fiches
                 await db.update_fiches(socket.id,"fiches - "+fiches_puntate);   //update delle fiches del giocatore
@@ -555,39 +635,47 @@ io.on("connection", (socket) => {
             await db.update_eliminated(socket.id,"True");
             turno -= 1;
         };
-        io.to(tavolo).emit("move",{tipo:tipo,puntata:(await get_bet(socket.id,tavolo,giro))[0]});
-
+        console.log(await db.check_bets(tavolo,giro));
+        io.to(tavolo).emit("move",{tipo:tipo,puntata:(await db.get_bet(socket.id,tavolo,giro))[0]});
         const in_gioco = await db.get_players_in_hand(tavolo);      //lista dei giocatori ancora in gioco [{socket,ordine,fiches},]
-        
-        if (!(await db.check_bets(tavolo,giro))) {              //check if tutti non eliminati hanno puntato o non hanno abbastanza (all in)
-            if (giro==4 || await db.check_allin(tavolo)) {          //check if ultimo giro(4) or all in
-                if (in_gioco.length === 1) {                            //if unico in gioco
-                    await end_hand(tavolo,in_gioco[0].ordine);              //await end_hand(tavolo,ordine_vincitore)
-                } else {
+        let vinto = false;
+        if (in_gioco.length === 1) {                            //if unico in gioco
+            await end_hand(tavolo,[in_gioco[0].ordine]);              //await end_hand(tavolo,ordine_vincitore)
+            vinto = true;
+        } else {
+            // se tutti hanno puntato e se tutte le puntate non all-in, raggiungono la puntata più alta del giro
+            const condizione = ((await db.get_round_bets(tavolo,giro)).length == in_gioco.length) && !(await db.check_bets(tavolo,giro));
+
+            if (condizione) {              //numero di i giocatori che devono raggiungere la puntata o sono in all in
+                if (giro==4 || await db.check_allin(tavolo)) {          //check if ultimo giro(4) or all in
                     if (await db.check_allin(tavolo)) {                                 //else if all in
                         io.to(tavolo).emit("hand",await get_hand_info(tavolo));        //aggiunge a hand le nuove carte, cambiando il giro a 4
                     };
                     let vincitori = await calcola_vincitori(tavolo,in_gioco);       //calcolo vincitore,tra le sockets in gioco ,restituisce l'ordine dei vincitori
                     await end_hand(tavolo,vincitori);    //await end_hand(tavolo,ordine_vincitori)
+                    vinto = true;
+                } else {
+                    giro += 1;
+                    turno = 2;
+                    await db.update_hand_round(tavolo,giro);      //prossimo giro
+                    await db.update_hand_turn(tavolo,2);     //turno = 2(small blind)     
                 };
             } else {
-                await db.update_hand_round(tavolo,giro+1);      //prossimo giro
-                await db.update_hand_turn(tavolo,2);     //turno = 2(small blind)     
+                turno = turno == in_gioco.length ? 1 : turno+1;   //se il turno è dell'ultimo, ritorna al primo, altrimenti aumenta di 1
+                await db.update_hand_turn(tavolo,turno);        //turno = indice della lista dei giocatori ancora in gioco
             };
-        } else {
-            turno = turno == in_gioco.length ? 1 : turno+1;   //se il turno è dell'ultimo, ritorna al primo, altrimenti aumenta di 1
-            await db.update_hand_turn(tavolo,turno);        //turno = indice della lista dei giocatori ancora in gioco
-            console.log("turno fin",turno)
         };
 
-        if (giro < 4) {
+        if (giro <= 4 && !vinto) {
+            console.log("giro ",giro);
+            console.log("turno ",turno);
             if (tipo === "big-blind") {
                 await Promise.all(in_gioco.map(async(player) => {
                     io.to(player.socket).emit("your cards",await get_player_cards(player.socket));
                 }));
             };
             io.to(tavolo).emit("hand",await get_hand_info(tavolo));    //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}]}
-            io.to(in_gioco[turno].socket).emit("turn",{turno:turno,giro:giro});       //manda turno e giro per conferma
+            io.to(in_gioco[turno-1].socket).emit("turn",{turno:turno,giro:giro});       //manda turno e giro per conferma
         };
     });
 
