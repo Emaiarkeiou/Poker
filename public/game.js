@@ -20,6 +20,10 @@ const friends_ul = document.getElementById("friends_ul");
 const invites_ul = document.getElementById("invites_ul");
 const invites_container = document.getElementById("invites_container");
 
+const check_b = document.getElementById("check_b");
+const fold_b = document.getElementById("fold_b");
+const bet_b = document.getElementById("bet_b");
+
 const logout_b = document.getElementById("logout_b");
 
 const canvas_container = document.getElementById("canvas_container");
@@ -197,13 +201,20 @@ socket.on("start hand", async(info) => {
 
 socket.on("hand", async(info) => {	
 	//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
+	check_b.disabled = true;
+	fold_b.disabled = true;
+	bet_b.disabled = true;
 	draw_hand(canvas,canvas_fiches,step,info);
 });
 
 
 
 socket.on("turn", async(turn) => { //{giro:1,turno:2}
-	console.log(turn)
+	console.log("aas")
+	check_b.disabled = false;
+	fold_b.disabled = false;
+	bet_b.disabled = false;
+	//socket.emit("move",{});
 });
 
 socket.on("your cards", async(cards) => { //[{id,valore,seme,path} x2]
@@ -234,6 +245,7 @@ window.onpageshow = (event) => {
 };
 
 
+/*
 
 //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
 create_table_b.classList.add("d-none");
@@ -261,3 +273,5 @@ setTimeout(() => {
 	canvas_cards.height = canvas_cards.offsetHeight;
 	draw_your_cards(canvas_cards,step,cards);
 }, 500);
+
+*/
