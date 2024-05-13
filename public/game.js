@@ -13,7 +13,7 @@ let in_game = false;
 const navbar = document.getElementById("navbar");
 const div_friends = document.getElementById("div_friends");
 const div_invites = document.getElementById("div_invites");
-const div_moves = document.getElementById("div_moves");
+const div_bottom = document.getElementById("div_bottom");
 
 const requests_ul = document.getElementById("requests_ul");
 const friends_ul = document.getElementById("friends_ul");
@@ -234,7 +234,7 @@ window.onpageshow = (event) => {
 };
 
 
-/*
+
 //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
 create_table_b.classList.add("d-none");
 invites_container.classList.add("d-none");
@@ -242,6 +242,7 @@ canvas_container.classList.add("full-screen")
 navbar.classList.add("dis-none");
 div_friends.classList.add("dis-none");
 div_invites.classList.add("dis-none");
+div_bottom.classList.remove("d-none");
 
 let infor = {carte:[{path:"/cards/7-2.png"},{path:"/cards/7-2.png"},{path:"/cards/7-2.png"}], players:[],
 			dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2,
@@ -260,4 +261,3 @@ setTimeout(() => {
 	canvas_cards.height = canvas_cards.offsetHeight;
 	draw_your_cards(canvas_cards,step,cards);
 }, 500);
-*/
