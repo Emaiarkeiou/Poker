@@ -219,6 +219,13 @@ socket.on("hand", async(info) => {
 	check_b.disabled = true;
 	fold_b.disabled = true;
 	bet_b.disabled = true;
+	/*
+
+
+	AGGIUSTARE RENDER DEI NOMI, IL NOME é LO STESSO DI QUELLO SOPRAAA
+	
+	
+	*/
 	draw_hand(canvas,canvas_fiches,step,info);
 });
 

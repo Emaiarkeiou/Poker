@@ -277,8 +277,20 @@ const calcola_vincitori = async(tavolo,players) => {
     for (const cat of categorie) {
         if (doppie.includes(cat)) {
             vincitori = punti.filter(punteggio => punteggio[cat].every(Boolean));
+            if (vincitori.length) {
+                let max = vincitori.reduce((max, v) => {return max > v[cat][0] ? max : v[cat][0];});
+                vincitori = vincitori.filter(v=> v[cat][0] == max);
+                if (vincitori.length > 1) {
+                    max = vincitori.reduce((max, v) => {return max > v[cat][1] ? max : v[cat][1];});
+                    vincitori = vincitori.filter(v=> v[cat][1] == max);
+                };
+            };
         } else {
             vincitori = punti.filter(punteggio => punteggio[cat]);
+            if (vincitori.length) {
+                let max = vincitori.reduce((max, v) => {return max > v[cat] ? max : v[cat];});
+                vincitori = vincitori.filter(v=> v[cat] == max);
+            };
         };
         if (vincitori.length) {
             if (vincitori.length == 1) {
@@ -345,7 +357,9 @@ const end_hand = async(tavolo,vincitori) => {
         let somma = (await db.get_bets_sum(tavolo))[0]["SUM(somma)"];
         let player = await db.get_player_by_order(tavolo,vincitore);
         console.log("vincitore: ",(await db.get_username(player.socket))[0].username);
-        await db.update_fiches(player.socket, "fiches + " + Math.floor(somma/vincitori.length))
+        await db.update_fiches(player.socket, "fiches + " + Math.floor(somma/vincitori.length));
+        player = await db.get_player_by_order(tavolo,vincitore);
+        console.log("fiches: ",(await db.get_username(player.socket))[0].username, player.fiches);
     }));
     await db.delete_hand(tavolo);                   //delete mano
     await db.delete_all_player_cards(tavolo);       //delete player cards
@@ -360,6 +374,7 @@ const end_hand = async(tavolo,vincitori) => {
     await scala_ordine(tavolo);
     await db.revisit_elimated(tavolo);
     io.to(tavolo).emit("players",await get_players_by_table(tavolo));
+    console.log(await get_players_by_table(tavolo));
 };
 
 /* DESCRIZIONE MESSAGGI CHE MANDA IL SERVER
@@ -421,8 +436,8 @@ io.of("/").adapter.on("leave-room", async (room, socket_id) => {    //room=tavol
                     if (in_gioco[mano.turno-1].ordine == player.ordine) {  //se era il turno di chi ha abbandonato
                         in_gioco = await db.get_players_in_hand(room);      //lista dei giocatori ancora in gioco [{socket,ordine,fiches},]
                         io.to(room).emit("hand",await get_hand_info(room));     //hand
-                        io.to(in_gioco[mano.turno].socket).emit("turn",{turno:mano.turno,giro:mano.giro});       //manda turno e giro per conferma
-                    } else if (in_gioco[mano.turno].ordine > player.ordine) {
+                        io.to(in_gioco[mano.turno-1].socket).emit("turn",{turno:mano.turno,giro:mano.giro});       //manda turno e giro per conferma
+                    } else if (in_gioco[mano.turno-1].ordine > player.ordine) {
                         await db.update_hand_turn(room,"turno - 1");     //turno scala
                         io.to(room).emit("hand",await get_hand_info(room));     //hand
                     } else{
@@ -593,6 +608,7 @@ io.on("connection", (socket) => {
         all_ready = await Promise.all(all_ready.map((pronto) => pronto.pronto));
         io.to([...socket.rooms][1]).emit("players",await get_players_by_table([...socket.rooms][1]));
         if (all_ready.length>=2 && all_ready.every(Boolean)) {
+            await db.delete_invites_table([...socket.rooms][1]);  //delete all invites to table
             start_hand([...socket.rooms][1])
         };
     });
