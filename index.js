@@ -655,10 +655,11 @@ io.on("connection", (socket) => {
         };
         if (tipo==="fold") {
             await db.update_eliminated(socket.id,"True");
-            turno -= 1;
+            turno --;
         };
         console.log(await db.check_bets(tavolo,giro));
         io.to(tavolo).emit("move",{tipo:tipo,puntata:(await db.get_bet(socket.id,tavolo,giro))[0]});
+        
         const in_gioco = await db.get_players_in_hand(tavolo);      //lista dei giocatori ancora in gioco [{socket,ordine,fiches},]
         let vinto = false;
         if (in_gioco.length === 1) {                            //if unico in gioco
@@ -671,6 +672,7 @@ io.on("connection", (socket) => {
             if (condizione) {              //numero di i giocatori che devono raggiungere la puntata o sono in all in
                 if (giro==4 || await db.check_allin(tavolo)) {          //check if ultimo giro(4) or all in
                     if (await db.check_allin(tavolo)) {                                 //else if all in
+                        await db.update_hand_round(tavolo,4)
                         io.to(tavolo).emit("hand",await get_hand_info(tavolo));        //aggiunge a hand le nuove carte, cambiando il giro a 4
                     };
                     let vincitori = await calcola_vincitori(tavolo,in_gioco);       //calcolo vincitore,tra le sockets in gioco ,restituisce l'ordine dei vincitori
@@ -687,7 +689,7 @@ io.on("connection", (socket) => {
                 await db.update_hand_turn(tavolo,turno);        //turno = indice della lista dei giocatori ancora in gioco
             };
         };
-
+        
         if (giro <= 4 && !vinto) {
             console.log("giro ",giro);
             console.log("turno ",turno);

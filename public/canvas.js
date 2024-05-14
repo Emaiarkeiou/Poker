@@ -276,7 +276,6 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
     ctx.shadowBlur = 0;
 
     const angle = ((2*Math.PI)/info.players.length);
-    let ordine = player.ordine;
 
     const card_width = step * 14;
     const card_height = step * 10;
@@ -288,10 +287,22 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
     card_grad.addColorStop(0.6, "rgba(18,53,36,0.5)");
     card_grad.addColorStop(0.8, "rgba(40,98,91,1)");
     card_grad.addColorStop(1, "rgba(18,53,36,0.5)");
+    // i = 0 quando player username = player ordine username
+
+    let ordine = player.ordine;
+    let lista_ordini = info.players.map((a) => a.ordine);
+    
+    info.players = info.players.sort((a, b) => a.ordine - b.ordine);
+    let start = info.players.splice(0,ordine-1);
+    info.players = info.players.concat(start);
+
+    console.log("players",info.players);
+    const players = info.players;
+
     for (let i=0;i<info.players.length;i++) {
-        if (ordine != player.ordine) {
-            let y_offset = height/1.7 * Math.sin(angle*i+Math.PI/2);
-            let x_offset = width/1.7 * Math.cos(angle*i+Math.PI/2);
+        if (i != 0) {
+            let y_offset = height/1.7 * Math.sin(angle*(i)+Math.PI/2);
+            let x_offset = width/1.7 * Math.cos(angle*(i)+Math.PI/2);
 
             let centrox = c.x + x_offset;
             centrox = centrox < card_width/2 ? card_width/2:centrox;
@@ -316,9 +327,9 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
 
             ctx.beginPath();
             ctx.fillStyle = "#ffffff";
-            ctx.fillText(info.players[ordine-1].username, corner_x+step, corner_y+step,card_width-2*step);
+            ctx.fillText(players[i].username, corner_x+step, corner_y+step,card_width-2*step);
 
-            const percentage = info.players[ordine-1].fiches/(250 * info.players.length); //percentuale di fiche che si hanno
+            const percentage = players[i].fiches/(250 * info.players.length); //percentuale di fiche che si hanno
             let colore = "";
             if (percentage < 0.1) {
                 colore = "#ff0000";
@@ -350,11 +361,8 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
             ctx.font = "bold 3rem Helvetica";
             ctx.textBaseline = "middle";
             ctx.textAlign = "center";
-            ctx.fillText(info.players[ordine-1].fiches, centrox, (corner_y+card_height)-4.5*step+off);
-            
-
+            ctx.fillText(players[i].fiches, centrox, (corner_y+card_height)-4.5*step+off);
         };
-        ordine = ordine == info.players.length ? 1 : ordine + 1;
     };
     ctx.shadowColor = "#7df9ff";
     ctx.shadowBlur = 13;
