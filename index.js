@@ -200,7 +200,7 @@ const calcola_punti_player = async(tavolo,carte,ordine) => {
     */
     let punti = {ordine:ordine,    scala_reale:0,scala_colore:0,poker:0,full:[0,0],colore:0,scala:0,tris:0,d_coppia:[0,0],coppia:0,c_alta:0};
 
-    punti.c_alta = carte.reduce((max, carta) => {return max > carta.valore ? max : carta.valore;});
+    punti.c_alta = Math.max(...carte.map(carta => carta.valore));
 
     for (let i = 1; i<6 ; i++) {
         carte.push(await db.get_hand_card(tavolo,i));
@@ -221,7 +221,7 @@ const calcola_punti_player = async(tavolo,carte,ordine) => {
             case 2:
                 punti.full[1] = val;
                 punti.d_coppia[1] = val;
-                (punti.d_coppia.sort()).reverse();
+                punti.d_coppia = (punti.d_coppia.sort()).reverse();
                 punti.coppia = val;
                 break;
             case 3:
@@ -278,18 +278,24 @@ const calcola_vincitori = async(tavolo,players) => {
         if (doppie.includes(cat)) {
             vincitori = punti.filter(punteggio => punteggio[cat].every(Boolean));
             if (vincitori.length) {
-                let max = vincitori.reduce((max, v) => {return max > v[cat][0] ? max : v[cat][0];});
-                vincitori = vincitori.filter(v=> v[cat][0] == max);
+                let max = Math.max(...vincitori.map(punt => punt[cat][0]));
+                vincitori = vincitori.filter(punt=> punt[cat][0] == max);
+                console.log(max)
                 if (vincitori.length > 1) {
-                    max = vincitori.reduce((max, v) => {return max > v[cat][1] ? max : v[cat][1];});
-                    vincitori = vincitori.filter(v=> v[cat][1] == max);
+                    max = Math.max(...vincitori.map(punt => punt[cat][1]));
+                    vincitori = vincitori.filter(punt=> punt[cat][1] == max);
                 };
+                
             };
         } else {
+            //{scala_reale:1, scala_colore:13-6, poker:14-2, full:[14-2,14-2], colore:1, 
+            // scala:14-6, tris:14-2, d_coppia:[14-2,14-2], coppia:14-2, c_alta:14-2}
             vincitori = punti.filter(punteggio => punteggio[cat]);
             if (vincitori.length) {
-                let max = vincitori.reduce((max, v) => {return max > v[cat] ? max : v[cat];});
-                vincitori = vincitori.filter(v=> v[cat] == max);
+                let max = Math.max(...vincitori.map(punt => punt[cat]));
+                vincitori = vincitori.filter(punt=> punt[cat] == max);
+                console.log(max)
+                console.log(vincitori)
             };
         };
         if (vincitori.length) {
