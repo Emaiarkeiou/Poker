@@ -138,7 +138,12 @@ const transition = async (canvas,canvas_fiches,canvas_cards,step,info) => {
 const draw_hand = async (canvas,canvas_fiches,step,info) => {    
     const ctx = canvas.getContext("2d");
     let width = canvas.width, height = canvas.height;
-    //{small_blind:,dealer:,giro:,turno:,puntate_giro:[{username,giocatore,mano,giro,somma}],somma_tot:,players:[{username,ordine,fiches,eliminato}]}
+    /*{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],
+               players:[{username,pronto,ordine,fiches,eliminato}],in_gioco:[{username,socket,ordine,fiches}]}*/
+    const usernames_in_gioco = info.in_gioco.map(player => player.username);
+    //turno = indice+1 della lista "in_gioco"(giocatori ancora in gioco)
+    //ordine = indice+1 nella posizione del tavolo anche non in gioco
+    //turno e ordine corrispondo se tutti sono ancora in gioco
 
     /*
 	{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:[{username,giocatore,mano,giro,somma}],
@@ -235,15 +240,32 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
 
     const space = step/4;
 
-    const percentage = player.fiches/(250 * info.players.length); //percentuale di fiche che si hanno
     let colore = "";
-    if (percentage < 0.1) {
-        colore = "#ff0000";
-    } else if (percentage < 0.3) {
-        colore = "#ff7700";
-    } else {
-        colore = "#00ff00";
-    }
+    //se il giocatore è in gioco o ha fatto all in
+    const condizione = (!usernames_in_gioco.includes(player.username) && !player.fiches) || info.in_gioco[info.turno-1].ordine == player.ordine;
+    if (condizione) {
+        ctx.shadowColor = "#7df9ff";
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = "#7df9ff";
+        ctx.beginPath();
+        ctx.roundRect(c.x-width/4-step/2,c.y+height/4-step/2, width/2+step, height/4+step*2,step);
+        ctx.fill();
+    } else if (!usernames_in_gioco.includes(player.username)) {
+        colore = "#657774";
+    };
+
+    const percentage = player.fiches/(250 * info.players.length); //percentuale di fiche che si hanno
+
+    if (!colore) {
+        if (percentage < 0.1) {
+            colore = "#ff0000";
+        } else if (percentage < 0.3) {
+            colore = "#ff7700";
+        } else {
+            colore = "#00ff00";
+        }
+    };
+    
     ctx_fiches.fillStyle = colore;
     ctx_fiches.strokeStyle = colore;
     ctx_fiches.shadowColor = colore;
@@ -268,8 +290,7 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
     ctx_fiches.textAlign = "center";
     ctx_fiches.fillText(player.fiches, c_f.x, c_f.y);
     ctx_fiches.globalCompositeOperation = "source-over";
-    
-
+    console.log("Turno: ",info.turno," Ordine: ", player.ordine)
 
     // OTHER PLAYERS
 
@@ -314,12 +335,33 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
 
             const corner_x = centrox-card_width/2;
             const corner_y = centroy-card_height/2;
-            
-            ctx.fillStyle = card_grad;
+
+            let fichescolor = "";
+            if (usernames_in_gioco.includes(players[i].username)) {
+                ctx.fillStyle = card_grad;
+            } else {
+                ctx.fillStyle = "#394442";
+                fichescolor = "#657774";
+            }
 
             ctx.beginPath();
             ctx.roundRect(corner_x,corner_y,card_width,card_height,step/3);
             ctx.fill();
+
+            //se il giocatore è in gioco o ha fatto all in
+            const condizione = (!usernames_in_gioco.includes(players[i].username) && !players[i].fiches) || info.in_gioco[info.turno-1].ordine == players[i].ordine;
+            if (condizione) {  
+                ctx.shadowColor = "#7df9ff";
+                ctx.shadowBlur = 20;
+                ctx.fillStyle = "#008080";
+                ctx.strokeStyle = "#7df9ff";
+                ctx.lineWidth = step/2;
+                ctx.beginPath();
+                ctx.roundRect(corner_x,corner_y,card_width,card_height,step/3);
+                ctx.fill();
+                ctx.stroke();
+            };
+            ctx.shadowBlur = 0;
 
             ctx.font = "bold 1.5rem Helvetica";
             ctx.textBaseline = "top";
@@ -330,17 +372,18 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
             ctx.fillText(players[i].username, corner_x+step, corner_y+step,card_width-2*step);
 
             const percentage = players[i].fiches/(250 * info.players.length); //percentuale di fiche che si hanno
-            let colore = "";
-            if (percentage < 0.1) {
-                colore = "#ff0000";
-            } else if (percentage < 0.3) {
-                colore = "#ff7700";
-            } else {
-                colore = "#00ff00";
-            }
-            ctx.fillStyle = colore;
-            ctx.strokeStyle = colore;
-            ctx.shadowColor = colore;
+            if (!fichescolor) {
+                if (percentage < 0.1) {
+                    fichescolor = "#ff0000";
+                } else if (percentage < 0.3) {
+                    fichescolor = "#ff7700";
+                } else {
+                    fichescolor = "#00ff00";
+                };
+            };
+            ctx.fillStyle = fichescolor;
+            ctx.strokeStyle = fichescolor;
+            ctx.shadowColor = fichescolor;
             ctx.shadowBlur = 13;
             
             const space = step/4;

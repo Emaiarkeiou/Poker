@@ -219,7 +219,6 @@ input::placeholder {
 
 #div_moves {
     background: linear-gradient(to bottom right,rgba(40,98,91,1), rgba(18,53,36,0.7));
-    
     border-bottom: 0;
     border-radius: 10px 10px 0 0;
 }

@@ -111,13 +111,15 @@ const render_requests = async (ul,requests) => { //[{utente1:nome,utente2:nome,a
 
 const render_friends = async (ul,friends) => {  //[{username:username,online:0/1},]
 	let to_render = "";
-    friends.forEach((friend) => {
-        if (friend.online == true){
-            to_render += online_friend_templ.replaceAll("%USERNAME",friend.username);
-        } else if (friend.online == false) {
-            to_render += offline_friend_templ.replaceAll("%USERNAME",friend.username);
-        };
+    let online_friends = friends.filter(friend => friend.online);
+    let offline_friends = friends.filter(friend => !friend.online);
+    online_friends.forEach((friend) => {
+        to_render += online_friend_templ.replaceAll("%USERNAME",friend.username);
     });
+    offline_friends.forEach((friend) => {
+        to_render += offline_friend_templ.replaceAll("%USERNAME",friend.username);
+    });
+    
     ul.innerHTML = to_render;
 };
 

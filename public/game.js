@@ -17,6 +17,7 @@ const navbar = document.getElementById("navbar");
 const div_friends = document.getElementById("div_friends");
 const div_invites = document.getElementById("div_invites");
 const div_bottom = document.getElementById("div_bottom");
+const div_moves = document.getElementById("div_moves");
 
 const requests_ul = document.getElementById("requests_ul");
 const friends_ul = document.getElementById("friends_ul");
@@ -138,7 +139,7 @@ add_friend_b.onclick = async () => {
 
     "your cards"
     "hand"          
-    "turn"          dice al client che è il suo turno e manda il turno per verificare
+    "turn"
     "move"          manda le informazioni della mossa fatta: tipo e puntata
 
     "all cards"     manda tutte le carte dei giocatori in gioco
@@ -214,18 +215,11 @@ socket.on("hand", async(info) => {
 	console.log("hand")
 	inf = info;
 	bet_in.readOnly = false;
-
 	//check puntate se 0 del giro
 	check_b.disabled = true;
 	fold_b.disabled = true;
 	bet_b.disabled = true;
-	/*
 
-
-	AGGIUSTARE RENDER DEI NOMI, IL NOME é LO STESSO DI QUELLO SOPRAAA
-	
-	
-	*/
 	draw_hand(canvas,canvas_fiches,step,info);
 });
 
@@ -239,7 +233,7 @@ socket.on("turn", async(turn) => { //{giro:1,turno:2}
 	} else if (turn.giro==1 && inf.puntate_giro.length==1) {
 		bet_in.value = inf.small_blind*2;	//big blind
 		bet_in.readOnly = true;
-	} else {	//se non è small o big blind
+	} else {	//se non è small o big blind ABILITARE PIU DI UN RILANCIO, MOSTRARE DI CHI E IL TURNO
 		let somme = inf.puntate_giro.map((puntata) => {return puntata.somma});
 		let min = Math.max(0,...somme);
 		let puntata = inf.puntate_giro.find((puntata) => puntata.username == getCookie("username"));
@@ -255,10 +249,6 @@ socket.on("turn", async(turn) => { //{giro:1,turno:2}
 	};
 	console.log(bet_in.readOnly,bet_in.min);
 	bet_b.disabled = false;
-});
-
-socket.on("move", async(move) => { //{giro:1,turno:2}
-	console.log("moveee");
 });
 
 check_b.onclick = async () => {
@@ -297,6 +287,19 @@ socket.on("your cards", async(cards) => { //[{id,valore,seme,path} x2]
 	draw_your_cards(canvas_cards,step,cards);
 });
 
+socket.on("move", async(move) => { //{tipo:,puntata:{giocatore:socket,mano:,giro:,somma:}}
+	//draw messaggi sulla mossa
+	console.log("moveee");
+});
+
+socket.on("all cards", async(carte) => { //{ordine : [ {id,valore,seme,path} , {id,valore,seme,path} ], x n}
+	//draw tutte le carte sul canvas
+});
+
+socket.on("end hand", async(vincitori) => { //[ordine,ordine...]
+	//draw vincitori e tasto per tornare al tavolo
+	console.log("fine");
+});
 
 
 //LOGOUT

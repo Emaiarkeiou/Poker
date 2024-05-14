@@ -301,7 +301,7 @@ const get_players_by_table = async(tavolo) => {
 
 const get_players_in_hand = async(tavolo) => {
     return await executeQuery(`
-        SELECT socket,ordine,fiches FROM Giocatore
+        SELECT username,socket,ordine,fiches FROM Giocatore
         WHERE tavolo = ${tavolo}
             AND eliminato = False
         ORDER BY ordine
@@ -571,6 +571,16 @@ const get_round_bets = async(tavolo,giro) => {
     `);
 };
 
+const get_round_bets_not_eliminated = async(tavolo,giro) => {
+    return await executeQuery(`
+        SELECT Puntata.giocatore FROM Puntata,Giocatore
+        WHERE Puntata.giocatore = Giocatore.socket
+            AND Puntata.giro = ${giro}
+            AND Puntata.mano = ${tavolo}
+            AND Giocatore.eliminato = False
+    `);
+};
+
 const check_bets = async(tavolo,giro) => {
     // check dei giocatori che devono ancora raggiungere la puntata
     // ritorna il numero dei giocatori
@@ -744,6 +754,7 @@ module.exports = {
     get_bet:get_bet,                                            //using socket,tavolo,giro
     get_bets_sum:get_bets_sum,                                  //using tavolo
     get_round_bets:get_round_bets,                              //using tavolo,giro
+    get_round_bets_not_eliminated:get_round_bets_not_eliminated,//using tavolo,giro
     check_bets:check_bets,                                      //using tavolo,giro                 //length
     check_allin:check_allin,                                    //using tavolo                      //length
 

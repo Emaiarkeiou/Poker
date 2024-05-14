@@ -132,7 +132,8 @@ const get_players_by_table = async(tavolo) => {
 // INFORMAZIONI DELLA MANO
 
 const get_hand_info = async(tavolo) => { 
-    //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
+    //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],
+    // players:[{username,pronto,ordine,fiches,eliminato}],in_gioco:[{username,socket,ordine,fiches}]}
     let info = {};
     const inftavolo = (await db.get_table(tavolo))[0];
     info.n_mano = inftavolo.n_mano;
@@ -151,8 +152,8 @@ const get_hand_info = async(tavolo) => {
 
     info.carte = await get_hand_cards(tavolo,mano.giro) //[{id,valore,seme,path}]
     info.players = await get_players_by_table(tavolo);
+    info.in_gioco = await db.get_players_in_hand(tavolo);
     return info; 
-    //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}]}
 };
 
 
@@ -261,7 +262,6 @@ const calcola_punti_player = async(tavolo,carte,ordine) => {
             };
         };
     };
-    console.log(punti);
     return punti;
 };
 
@@ -280,7 +280,6 @@ const calcola_vincitori = async(tavolo,players) => {
             if (vincitori.length) {
                 let max = Math.max(...vincitori.map(punt => punt[cat][0]));
                 vincitori = vincitori.filter(punt=> punt[cat][0] == max);
-                console.log(max)
                 if (vincitori.length > 1) {
                     max = Math.max(...vincitori.map(punt => punt[cat][1]));
                     vincitori = vincitori.filter(punt=> punt[cat][1] == max);
@@ -294,8 +293,6 @@ const calcola_vincitori = async(tavolo,players) => {
             if (vincitori.length) {
                 let max = Math.max(...vincitori.map(punt => punt[cat]));
                 vincitori = vincitori.filter(punt=> punt[cat] == max);
-                console.log(max)
-                console.log(vincitori)
             };
         };
         if (vincitori.length) {
@@ -308,7 +305,6 @@ const calcola_vincitori = async(tavolo,players) => {
     };
 
     vincitori = vincitori.map((vinc) => vinc.ordine);
-    console.log("vinc",vincitori)
     return vincitori;
 };
 
@@ -365,7 +361,6 @@ const end_hand = async(tavolo,vincitori) => {
         console.log("vincitore: ",(await db.get_username(player.socket))[0].username);
         await db.update_fiches(player.socket, "fiches + " + Math.floor(somma/vincitori.length));
         player = await db.get_player_by_order(tavolo,vincitore);
-        console.log("fiches: ",(await db.get_username(player.socket))[0].username, player.fiches);
     }));
     await db.delete_hand(tavolo);                   //delete mano
     await db.delete_all_player_cards(tavolo);       //delete player cards
@@ -380,7 +375,6 @@ const end_hand = async(tavolo,vincitori) => {
     await scala_ordine(tavolo);
     await db.revisit_elimated(tavolo);
     io.to(tavolo).emit("players",await get_players_by_table(tavolo));
-    console.log(await get_players_by_table(tavolo));
 };
 
 /* DESCRIZIONE MESSAGGI CHE MANDA IL SERVER
@@ -432,8 +426,10 @@ io.of("/").adapter.on("leave-room", async (room, socket_id) => {    //room=tavol
             await db.delete_invites_player(socket_id);              //inviti
             if ((await db.get_hand(room)).length) { //non spostare      //se si è in una mano, crea un placeholder
                 if ((await io.in(room).fetchSockets()).length == 1) {   //se ne rimane 1
-                    in_gioco = await db.get_players_in_hand(room);
+                    try {
+                        in_gioco = await db.get_players_in_hand(room);
                     await end_hand(room,[in_gioco[0].ordine]);      //end_hand
+                    } catch {};
                 } else {
                     await db.create_placeholder(socket_id,room,player.ordine,"True");       //socket,tavolo,ordine,eliminato
                     let mano = (await db.get_hand(room))[0];         //turno = indice+1 di in_gioco
@@ -653,28 +649,30 @@ io.on("connection", (socket) => {
                 };
             };
         };
+
         if (tipo==="fold") {
             await db.update_eliminated(socket.id,"True");
-            turno --;
+            turno--;
         };
-        console.log(await db.check_bets(tavolo,giro));
-        io.to(tavolo).emit("move",{tipo:tipo,puntata:(await db.get_bet(socket.id,tavolo,giro))[0]});
+
+        io.to(tavolo).emit("move",{tipo:tipo,puntata:(await db.get_bet(socket.id,tavolo,giro))[0]});    //{tipo,puntata}
         
         const in_gioco = await db.get_players_in_hand(tavolo);      //lista dei giocatori ancora in gioco [{socket,ordine,fiches},]
+
         let vinto = false;
         if (in_gioco.length === 1) {                            //if unico in gioco
             await end_hand(tavolo,[in_gioco[0].ordine]);              //await end_hand(tavolo,ordine_vincitore)
             vinto = true;
         } else {
             // se tutti hanno puntato e se tutte le puntate non all-in, raggiungono la puntata più alta del giro
-            const condizione = ((await db.get_round_bets(tavolo,giro)).length == in_gioco.length) && !(await db.check_bets(tavolo,giro));
-
+            const condizione = ((await db.get_round_bets_not_eliminated(tavolo,giro)).length == in_gioco.length) && !(await db.check_bets(tavolo,giro));
+            console.log(condizione);
             if (condizione) {              //numero di i giocatori che devono raggiungere la puntata o sono in all in
                 if (giro==4 || await db.check_allin(tavolo)) {          //check if ultimo giro(4) or all in
                     if (await db.check_allin(tavolo)) {                                 //else if all in
                         await db.update_hand_round(tavolo,4)
-                        io.to(tavolo).emit("hand",await get_hand_info(tavolo));        //aggiunge a hand le nuove carte, cambiando il giro a 4
                     };
+                    io.to(tavolo).emit("hand",await get_hand_info(tavolo));        //aggiunge a hand le nuove carte, cambiando il giro a 4
                     let vincitori = await calcola_vincitori(tavolo,in_gioco);       //calcolo vincitore,tra le sockets in gioco ,restituisce l'ordine dei vincitori
                     await end_hand(tavolo,vincitori);    //await end_hand(tavolo,ordine_vincitori)
                     vinto = true;
@@ -685,8 +683,9 @@ io.on("connection", (socket) => {
                     await db.update_hand_turn(tavolo,2);     //turno = 2(small blind)     
                 };
             } else {
+                //turno = indice+1 della lista "in_gioco"(giocatori ancora in gioco)
                 turno = turno == in_gioco.length ? 1 : turno+1;   //se il turno è dell'ultimo, ritorna al primo, altrimenti aumenta di 1
-                await db.update_hand_turn(tavolo,turno);        //turno = indice della lista dei giocatori ancora in gioco
+                await db.update_hand_turn(tavolo,turno);       
             };
         };
         
@@ -698,7 +697,10 @@ io.on("connection", (socket) => {
                     io.to(player.socket).emit("your cards",await get_player_cards(player.socket));
                 }));
             };
-            io.to(tavolo).emit("hand",await get_hand_info(tavolo));    //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}]}
+            /*{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],
+               players:[{username,pronto,ordine,fiches,eliminato}],in_gioco:[{username,socket,ordine,fiches}]}*/
+            io.to(tavolo).emit("hand",await get_hand_info(tavolo));
+            console.log(in_gioco)
             io.to(in_gioco[turno-1].socket).emit("turn",{turno:turno,giro:giro});       //manda turno e giro per conferma
         };
     });
