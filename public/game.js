@@ -74,9 +74,6 @@ const ready_check = document.getElementById("ready_check");
 
 create_table_b.onclick = async() => {
 	await create_table(getCookie("username"),getCookie("password"));
-	//create_table_b.classList.add("d-none");
-	//ready_b.classList.remove("d-none");
-	//quit_b.classList.remove("d-none");
 };
 
 // ESCI
@@ -239,7 +236,6 @@ socket.on("turn", async(turn) => { //{giro:1,turno:2}
 		let puntata = inf.puntate_giro.find((puntata) => puntata.username == getCookie("username"));
 		if (puntata) {
 			min = min>puntata.somma? min-puntata.somma:min;
-			bet_in.readOnly = true;
 		};
 		bet_in.value = min;
 		bet_in.min = min;
@@ -281,6 +277,7 @@ bet_b.onclick = async () => {
 	};
 	bet_b.disabled = true;
 	socket.emit("move",{tipo:move, giro:giro_turno.giro, turno:giro_turno.turno, somma:somma});
+	bet_in.value = null;
 };
 
 socket.on("your cards", async(cards) => { //[{id,valore,seme,path} x2]
