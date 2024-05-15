@@ -185,7 +185,7 @@ const get_player_cards = async(socket) => {
 const get_players_cards = async(tavolo) => {
     let all_cards = {};
     await Promise.all((await get_players_by_table(tavolo)).map(async(player) => {
-        let carte = await get_player_cards(await db.get_socket(player.username));
+        let carte = await get_player_cards((await db.get_socket(player.username))[0].socket);
         all_cards[player.ordine] = carte;
     }));
     return all_cards;      //{ordine : [ {id,valore,seme,path} , {id,valore,seme,path} ], x n}

@@ -1,6 +1,6 @@
 import { create_table } from "./remote.js";
 import { getCookie,checkLogin,deleteLogin } from "./cookies.js";
-import { draw_lobby,draw_table,draw_players,transition,draw_hand, draw_your_cards,draw_move,draw_winners } from "./canvas.js";
+import { draw_lobby,draw_table,draw_players,transition,draw_hand,draw_your_cards } from "./canvas.js";
 import { render_requests,render_friends,render_invites  } from "./render.js";
 import { bind_friends, bind_requests, bind_invites } from "./bind.js";
 
@@ -9,11 +9,13 @@ if (!(await checkLogin())) {
 };
 document.getElementById("navbar_username").innerText = getCookie("username");
 
+let v_players = [];
 let in_game = false;
 let giro_turno = {};
 let inf = {};
 let last_move = {};
 let vincitori = [];
+let all_cards = {};
 
 const navbar = document.getElementById("navbar");
 const div_friends = document.getElementById("div_friends");
@@ -127,25 +129,6 @@ add_friend_b.onclick = async () => {
 
 //WEBSOCKET
 
-/* DESCRIZIONE MESSAGGI CHE MANDA IL SERVER
-    "request"
-    "invite"
-    "friends"
-
-    "players"
-
-    "start hand"
-
-    "your cards"
-    "hand"          
-    "turn"
-    "move"          manda le informazioni della mossa fatta: tipo e puntata
-
-    "all cards"     manda tutte le carte dei giocatori in gioco
-    "end hand"      manda il vincitore e dice al client che la mano è finita
-    "error"         manda una stringa con l'errore
-*/
-
 const username = getCookie("username");
 const socket = io();
 socket.emit("login", { username: username });
@@ -168,7 +151,7 @@ socket.on("invite", async(invites) => {
 	await bind_invites(socket,invites);
 });
 
-let v_players = [];
+
 socket.on("players", async(players) => { 
 	//informazioni generali dei giocatori del tavolo: username,pronto,ordine,fiches,eliminato
 	console.log("players",players)
@@ -186,14 +169,13 @@ socket.on("players", async(players) => {
 
 
 socket.on("start hand", async(info) => {	
-	/*
-	{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:[{username,giocatore,mano,giro,somma}],
-	somma_tot:, carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
-	*/
 	console.log("start hand")
 	in_game = true;
 	inf = info;
 	vincitori = [];
+	all_cards = {};
+	giro_turno = {};
+	last_move = {};
 	ready_check.checked = false;
 	ready_b.classList.add("d-none");
 	quit_b.classList.add("d-none");
@@ -213,12 +195,12 @@ socket.on("hand", async(info) => {
 	};
 	inf = info;
 	bet_in.readOnly = false;
-	//check puntate se 0 del giro
+
 	check_b.disabled = true;
 	fold_b.disabled = true;
 	bet_b.disabled = true;
 
-	draw_hand(canvas,canvas_fiches,step,info,last_move,vincitori);
+	draw_hand(canvas,canvas_fiches,step,info,last_move,vincitori,all_cards);
 });
 
 
@@ -293,6 +275,7 @@ socket.on("move", async(move) => { //{ordine,tipo:,puntata:{giocatore:socket,man
 
 socket.on("all cards", async(carte) => { //{ordine : [ {id,valore,seme,path} , {id,valore,seme,path} ], x n}
 	//draw tutte le carte sul canvas
+	all_cards = carte;
 });
 
 socket.on("end hand", async(winners) => { //[ordine,ordine...]
@@ -317,7 +300,7 @@ socket.on("end hand", async(winners) => { //[ordine,ordine...]
 		ready_b.classList.remove("d-none");
 		ready_b.classList.remove("ready");
 		quit_b.classList.remove("d-none");
-	}, 5000);
+	}, 13000);
 });
 
 
@@ -341,7 +324,6 @@ window.onpageshow = (event) => {
 	  	window.location.reload();
 	};
 };
-
 
 /*
 //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}

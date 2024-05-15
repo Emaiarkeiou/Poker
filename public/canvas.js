@@ -126,7 +126,7 @@ const transition = async (canvas,canvas_fiches,canvas_cards,step,info) => {
                 canvas_fiches.width  = canvas_fiches.offsetWidth;
                 canvas_cards.width  = canvas_cards.offsetWidth;
                 canvas_cards.height = canvas_cards.offsetHeight;
-                draw_hand(canvas,canvas_fiches,step,info,{},[]);
+                draw_hand(canvas,canvas_fiches,step,info,{},[],{});
                 draw_your_cards(canvas_cards,step,[]);
             }, 500);
         };
@@ -135,7 +135,7 @@ const transition = async (canvas,canvas_fiches,canvas_cards,step,info) => {
 
 
 
-const draw_hand = async (canvas,canvas_fiches,step,info,last_move,vincitori) => {    
+const draw_hand = async (canvas,canvas_fiches,step,info,last_move,vincitori,all_cards) => {    
     const ctx = canvas.getContext("2d");
     let width = canvas.width, height = canvas.height;
     /*{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],
@@ -145,8 +145,10 @@ const draw_hand = async (canvas,canvas_fiches,step,info,last_move,vincitori) => 
     //ordine = indice+1 nella posizione del tavolo anche non in gioco
     //turno e ordine corrispondo se tutti sono ancora in gioco
     let total_fiches = info.players.reduce((somma,player) => somma + player.fiches,0);
-    if (info.soma_tot) {
+    if (info.somma_tot) {
         total_fiches += parseInt(info.somma_tot);
+    } else {
+        info.somma_tot = 0; //numero di fiche puntate in totale
     };
     /*
 	{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:[{username,giocatore,mano,giro,somma}],
@@ -196,7 +198,22 @@ const draw_hand = async (canvas,canvas_fiches,step,info,last_move,vincitori) => 
             ctx.lineWidth = step/4;
             ctx.roundRect((c.x-total_width/2+2*step) + i*(cardwidth+2*step), c.y-(cardwidth*3-step)/2,cardwidth*2+step,cardwidth*3-step,step/3);
             ctx.stroke();
-
+            if (!vincitori.length) {    //visualizza la somma di tutte le puntate
+                ctx.beginPath();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = "#7df9ff";
+                const height = cardwidth*3-2*step;
+                const percentage = height * (info.somma_tot/total_fiches);
+                ctx.roundRect((c.x-total_width/2+2*step+step/2) + i*(cardwidth+2*step), c.y-(cardwidth*3-step)/2 + step/2 + (height-percentage), 
+                                cardwidth*2,percentage,step/4);
+                ctx.fill()
+                ctx.font = "bold 5rem Helvetica";
+                ctx.textBaseline = "middle";
+                ctx.textAlign = "center";
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(info.somma_tot, (c.x-total_width/2+2*step) + i*(cardwidth+2*step) + cardwidth + step/2, c.y, cardwidth*2);
+            };
+            
         } else {
             ctx.shadowBlur = 0;
             ctx.strokeStyle = "#37877f";
@@ -345,6 +362,24 @@ const draw_hand = async (canvas,canvas_fiches,step,info,last_move,vincitori) => 
             let fichescolor = "";
             if (usernames_in_gioco.includes(players[i].username)) {
                 ctx.fillStyle = card_grad;
+                if (all_cards[players[i].ordine]) {
+                    let centrox = c.x + x_offset/1.5 -(step/2+cardwidth);
+                    let centroy = c.y + y_offset/1.5;
+                    let j = 0
+                    let imagesAll = [];
+                    all_cards[players[i].ordine].forEach((carta) => {
+                        imagesAll.push(new Image());
+                        imagesAll[j].src = carta.path;
+                        console.log(carta.path)
+                        j++;
+                    });
+
+                    imagesAll.forEach((image) => {
+                        image.onload = () => {
+                            ctx.drawImage(image,centrox+imagesAll.indexOf(image)*(step+cardwidth),centroy,cardwidth,cardheight);
+                        };
+                    });
+                };
             } else {
                 ctx.fillStyle = "#394442";
                 fichescolor = "#657774";
@@ -425,7 +460,7 @@ const draw_hand = async (canvas,canvas_fiches,step,info,last_move,vincitori) => 
     };
     if (vincitori.length) {
         draw_winners(canvas,step,info,vincitori);
-    }
+    };
 };
 
 
@@ -466,7 +501,7 @@ const draw_move = (canvas,step,info,move) => {  //{ordine:,tipo:,puntata:{giocat
     ctx.beginPath();
     ctx.shadowBlur = 0;
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 1rem Helvetica";
+    ctx.font = "bold 1.5rem Helvetica";
     ctx.textBaseline = "middle";
     ctx.textAlign = "center";
     ctx.fillText(message, c.x, c.y-total_height/2,total_width);
