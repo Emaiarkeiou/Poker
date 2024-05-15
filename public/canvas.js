@@ -126,7 +126,7 @@ const transition = async (canvas,canvas_fiches,canvas_cards,step,info) => {
                 canvas_fiches.width  = canvas_fiches.offsetWidth;
                 canvas_cards.width  = canvas_cards.offsetWidth;
                 canvas_cards.height = canvas_cards.offsetHeight;
-                draw_hand(canvas,canvas_fiches,step,info);
+                draw_hand(canvas,canvas_fiches,step,info,{},[]);
                 draw_your_cards(canvas_cards,step,[]);
             }, 500);
         };
@@ -135,7 +135,7 @@ const transition = async (canvas,canvas_fiches,canvas_cards,step,info) => {
 
 
 
-const draw_hand = async (canvas,canvas_fiches,step,info) => {    
+const draw_hand = async (canvas,canvas_fiches,step,info,last_move,vincitori) => {    
     const ctx = canvas.getContext("2d");
     let width = canvas.width, height = canvas.height;
     /*{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],
@@ -144,7 +144,10 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
     //turno = indice+1 della lista "in_gioco"(giocatori ancora in gioco)
     //ordine = indice+1 nella posizione del tavolo anche non in gioco
     //turno e ordine corrispondo se tutti sono ancora in gioco
-
+    let total_fiches = info.players.reduce((somma,player) => somma + player.fiches,0);
+    if (info.soma_tot) {
+        total_fiches += parseInt(info.somma_tot);
+    };
     /*
 	{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:[{username,giocatore,mano,giro,somma}],
 	somma_tot:, carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
@@ -218,7 +221,6 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
     info.carte.forEach((carta) => {
         images.push(new Image());
         images[i].src = carta.path;
-        console.log(images[i]);
         i++;
     });
 
@@ -242,7 +244,11 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
 
     let colore = "";
     //se il giocatore è in gioco o ha fatto all in
-    const condizione = (!usernames_in_gioco.includes(player.username) && !player.fiches) || info.in_gioco[info.turno-1].ordine == player.ordine;
+    let condizione_pre = false;
+    if (info.in_gioco.length >= info.turno) {
+        condizione_pre = info.in_gioco[info.turno-1].ordine == player.ordine;
+    };
+    const condizione = (!usernames_in_gioco.includes(player.username) && !player.fiches) || condizione_pre;
     if (condizione) {
         ctx.shadowColor = "#7df9ff";
         ctx.shadowBlur = 20;
@@ -254,7 +260,7 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
         colore = "#657774";
     };
 
-    const percentage = player.fiches/(250 * info.players.length); //percentuale di fiche che si hanno
+    const percentage = player.fiches/total_fiches; //percentuale di fiche che si hanno
 
     if (!colore) {
         if (percentage < 0.1) {
@@ -349,7 +355,11 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
             ctx.fill();
 
             //se il giocatore è in gioco o ha fatto all in
-            const condizione = (!usernames_in_gioco.includes(players[i].username) && !players[i].fiches) || info.in_gioco[info.turno-1].ordine == players[i].ordine;
+            let condizione_pre = false;
+            if (info.in_gioco.length >= info.turno) {
+                condizione_pre = info.in_gioco[info.turno-1].ordine == players[i].ordine;
+            };
+            const condizione = (!usernames_in_gioco.includes(player.username) && !player.fiches) || condizione_pre;
             if (condizione) {  
                 ctx.shadowColor = "#7df9ff";
                 ctx.shadowBlur = 20;
@@ -371,7 +381,7 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
             ctx.fillStyle = "#ffffff";
             ctx.fillText(players[i].username, corner_x+step, corner_y+step,card_width-2*step);
 
-            const percentage = players[i].fiches/(250 * info.players.length); //percentuale di fiche che si hanno
+            const percentage = players[i].fiches/total_fiches; //percentuale di fiche che si hanno
             if (!fichescolor) {
                 if (percentage < 0.1) {
                     fichescolor = "#ff0000";
@@ -409,6 +419,57 @@ const draw_hand = async (canvas,canvas_fiches,step,info) => {
     };
     ctx.shadowColor = "#7df9ff";
     ctx.shadowBlur = 13;
+
+    if (Object.keys(last_move).length) {
+        draw_move(canvas,step,info,last_move);
+    };
+    if (vincitori.length) {
+        draw_winners(canvas,step,info,vincitori);
+    }
+};
+
+
+const draw_move = (canvas,step,info,move) => {  //{ordine:,tipo:,puntata:{giocatore:socket,mano:,giro:,somma:}}
+    const ctx = canvas.getContext("2d");
+    let width = canvas.width, height = canvas.height;
+    console.log(move.ordine)
+    let player = info.players.find((player) => player.ordine == move.ordine);
+    let message = player.username;
+    switch (move.tipo) {
+        case "check":
+            message += " ha bussato";
+            break;
+        case "fold":
+            message += " ha lasciato";
+            break;
+        case "call":
+            message += " ha puntato "+ move.puntata.somma;
+            break;
+        case "raise":
+            message += " ha rilanciato a "+ move.puntata.somma;
+            break;
+        case "all-in":
+            message += " ha fatto un all-in di "+ move.puntata.somma;
+            break;
+        case "small-blind":
+            message += " ha pagato lo small blind: "+ move.puntata.somma;
+            break;
+        case "big-blind":
+            message += " ha pagato il big blind: "+ move.puntata.somma;
+            break;
+    };
+    let c = {x:width/2,y:height/2};     //centro del canvas
+    const cardwidth = (1.8*step*4);
+    const total_width = cardwidth*7 + step*15;
+    const total_height = cardwidth*3 + step*3;
+
+    ctx.beginPath();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 1rem Helvetica";
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.fillText(message, c.x, c.y-total_height/2,total_width);
 };
 
 const draw_your_cards = (canvas,step,cards) => {
@@ -454,5 +515,37 @@ const draw_your_cards = (canvas,step,cards) => {
     });
 };
 
+const draw_winners = (canvas,step,info,vincitori) => {   //[ordine,ordine...]
+    const ctx = canvas.getContext("2d");
+    let width = canvas.width, height = canvas.height;
+    let c = {x:width/2,y:height/2};     //centro del canvas
+    let message = "";
+    if (vincitori.length == 1) {
+        let player = info.players.find((player) => player.ordine == vincitori[0]);
+        message += player.username + " ha vinto";
+    } else if (vincitori.length) {
+        vincitori.forEach((vinc) => {
+            let player = info.players.find((player) => player.ordine == vinc);
+            message += player.username + ", ";
+        });
+        message = message.slice(0, -2) + " hanno vinto";
+    };
+    ctx.beginPath();
+    ctx.font = "bold 5rem Helvetica";
+    ctx.textBaseline = "top";
+    ctx.textAlign = "center";
 
-export { draw_lobby,draw_table,draw_players,transition,draw_hand,draw_your_cards};
+    ctx.shadowColor = "#7df9ff";
+    ctx.shadowBlur = 13;
+    ctx.strokeStyle = "#7df9ff";
+    ctx.lineWidth = step/2;
+    ctx.strokeText(message, c.x, c.y/2 + step*2, width);
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#123524";
+    ctx.fillText(message, c.x, c.y/2 + step*2, width);
+
+};
+
+
+export { draw_lobby,draw_table,draw_players,transition,draw_hand,draw_your_cards,draw_move,draw_winners};

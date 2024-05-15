@@ -1,6 +1,6 @@
 import { create_table } from "./remote.js";
 import { getCookie,checkLogin,deleteLogin } from "./cookies.js";
-import { draw_lobby,draw_table,draw_players,transition,draw_hand, draw_your_cards } from "./canvas.js";
+import { draw_lobby,draw_table,draw_players,transition,draw_hand, draw_your_cards,draw_move,draw_winners } from "./canvas.js";
 import { render_requests,render_friends,render_invites  } from "./render.js";
 import { bind_friends, bind_requests, bind_invites } from "./bind.js";
 
@@ -12,6 +12,8 @@ document.getElementById("navbar_username").innerText = getCookie("username");
 let in_game = false;
 let giro_turno = {};
 let inf = {};
+let last_move = {};
+let vincitori = [];
 
 const navbar = document.getElementById("navbar");
 const div_friends = document.getElementById("div_friends");
@@ -56,7 +58,7 @@ canvas_cards.height = canvas_cards.offsetHeight;
 canvas_fiches.width  = canvas_fiches.offsetWidth;
 //canvas_fiches.height = canvas_fiches.offsetHeight;
 
-let width = canvas.width, height = canvas.height;
+let height = canvas.height;
 const step=(height/50);
 draw_lobby(canvas,step);
 
@@ -171,12 +173,6 @@ socket.on("players", async(players) => {
 	//informazioni generali dei giocatori del tavolo: username,pronto,ordine,fiches,eliminato
 	console.log("players",players)
 	v_players = players;
-	/*
-	
-	GESTIRE PULSANTE INVITI, non mostrarlo se è già nel tavolo
-	mostrarlo se si è in un tavolo NON pieno
-	non mostrare gli inviti se si è già in un tavolo
-	*/
 	if (!in_game){
 		create_table_b.classList.add("d-none");
 		invites_container.classList.add("d-none");
@@ -197,6 +193,8 @@ socket.on("start hand", async(info) => {
 	console.log("start hand")
 	in_game = true;
 	inf = info;
+	vincitori = [];
+	ready_check.checked = false;
 	ready_b.classList.add("d-none");
 	quit_b.classList.add("d-none");
 	ready_b.classList.remove("ready");
@@ -209,7 +207,10 @@ socket.on("hand", async(info) => {
 	{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:[{username,giocatore,mano,giro,somma}],
 	somma_tot:, carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
 	*/
-	console.log("hand")
+	console.log("hand",inf.giro,info.giro)
+	if (inf.giro != info.giro) {
+		bet_in.min = 0;
+	};
 	inf = info;
 	bet_in.readOnly = false;
 	//check puntate se 0 del giro
@@ -217,13 +218,13 @@ socket.on("hand", async(info) => {
 	fold_b.disabled = true;
 	bet_b.disabled = true;
 
-	draw_hand(canvas,canvas_fiches,step,info);
+	draw_hand(canvas,canvas_fiches,step,info,last_move,vincitori);
 });
 
 
 socket.on("turn", async(turn) => { //{giro:1,turno:2}
 	giro_turno = turn;
-	console.log("your turn ",turn)
+	bet_in.readOnly = false;
 	if (turn.giro==1 && inf.puntate_giro.length==0) {
 		bet_in.value = inf.small_blind;			//small blind
 		bet_in.readOnly = true;
@@ -234,31 +235,32 @@ socket.on("turn", async(turn) => { //{giro:1,turno:2}
 		let somme = inf.puntate_giro.map((puntata) => {return puntata.somma});
 		let min = Math.max(0,...somme);
 		let puntata = inf.puntate_giro.find((puntata) => puntata.username == getCookie("username"));
-		if (puntata) {
+		if (puntata) {	//se ha già puntato non può rilanciare
 			min = min>puntata.somma? min-puntata.somma:min;
+			bet_in.readOnly = true;
 		};
 		bet_in.value = min;
 		bet_in.min = min;
 		check_b.disabled = min? true:false;
 		fold_b.disabled = false;
-		console.log("min", min);
 	};
-	console.log(bet_in.readOnly,bet_in.min);
 	bet_b.disabled = false;
 });
 
 check_b.onclick = async () => {
-	socket.emit("move",{tipo:"check",giro:giro_turno.giro,turno:giro_turno.turno,somma:0});
+	let player = inf.players.find((player) => player.username == getCookie("username"));
+	socket.emit("move",{tipo:"check",giro:giro_turno.giro,turno:giro_turno.turno,ordine:player.ordine,somma:0});
 	check_b.disabled = true;
 };
 
 fold_b.onclick = async () => {
-	socket.emit("move",{tipo:"fold",giro:giro_turno.giro,turno:giro_turno.turno,somma:0});
+	let player = inf.players.find((player) => player.username == getCookie("username"));
+	socket.emit("move",{tipo:"fold",giro:giro_turno.giro,turno:giro_turno.turno,ordine:player.ordine,somma:0});
 	fold_b.disabled = true;
 };
 
 bet_b.onclick = async () => {
-	let move = "";
+	let move = "call";
 	let player = inf.players.find((player) => player.username == getCookie("username"));
 	let somma = bet_in.value<bet_in.min? bet_in.min:bet_in.value;
 	if (giro_turno.giro==1 && inf.puntate_giro.length==0) {
@@ -266,17 +268,17 @@ bet_b.onclick = async () => {
 	} else if (giro_turno.giro==1 && inf.puntate_giro.length==1) {
 		move = "big-blind";
 	} else {
-		if (somma>player.fiches) {
+		if(somma == 0){
+			move = "check";
+		} else if (somma>=player.fiches) {
 			somma = player.fiches;
 			move = "all-in";
-		} else if(somma == bet_in.min) {
-			move = "call";
-		} else if(somma > bet_in.min) {
+		} else if(somma > bet_in.min && inf.puntate_giro.length!=0) {
 			move = "raise";
 		};
 	};
 	bet_b.disabled = true;
-	socket.emit("move",{tipo:move, giro:giro_turno.giro, turno:giro_turno.turno, somma:somma});
+	socket.emit("move",{tipo:move, giro:giro_turno.giro, turno:giro_turno.turno, ordine:player.ordine,somma:somma});
 	bet_in.value = null;
 };
 
@@ -284,18 +286,38 @@ socket.on("your cards", async(cards) => { //[{id,valore,seme,path} x2]
 	draw_your_cards(canvas_cards,step,cards);
 });
 
-socket.on("move", async(move) => { //{tipo:,puntata:{giocatore:socket,mano:,giro:,somma:}}
+socket.on("move", async(move) => { //{ordine,tipo:,puntata:{giocatore:socket,mano:,giro:,somma:}}
 	//draw messaggi sulla mossa
-	console.log("moveee");
+	last_move = move;
 });
 
 socket.on("all cards", async(carte) => { //{ordine : [ {id,valore,seme,path} , {id,valore,seme,path} ], x n}
 	//draw tutte le carte sul canvas
 });
 
-socket.on("end hand", async(vincitori) => { //[ordine,ordine...]
+socket.on("end hand", async(winners) => { //[ordine,ordine...]
 	//draw vincitori e tasto per tornare al tavolo
-	console.log("fine");
+	vincitori = winners;
+	setTimeout(() => {
+		console.log("end hand")
+		socket.emit("unready");
+		in_game = false;
+		div_bottom.classList.add("d-none");
+		div_invites.classList.remove("dis-none");
+		div_friends.classList.remove("dis-none");
+		navbar.classList.remove("dis-none");
+		canvas_container.classList.remove("full-screen")
+        canvas.width  = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+		draw_lobby(canvas,step);
+		draw_table(canvas,step,1,1);
+		draw_players(canvas,step,v_players,0,0);
+		create_table_b.classList.add("d-none");
+		invites_container.classList.add("d-none");
+		ready_b.classList.remove("d-none");
+		ready_b.classList.remove("ready");
+		quit_b.classList.remove("d-none");
+	}, 5000);
 });
 
 
@@ -322,7 +344,6 @@ window.onpageshow = (event) => {
 
 
 /*
-
 //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
 create_table_b.classList.add("d-none");
 invites_container.classList.add("d-none");
@@ -334,9 +355,10 @@ div_bottom.classList.remove("d-none");
 
 let infor = {carte:[{path:"/cards/7-2.png"},{path:"/cards/7-2.png"},{path:"/cards/7-2.png"}], players:[],
 			dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2,
-			players:[{username:"aa",ordine:1,fiches:0},{username:"prova",ordine:2,fiches:0},
-			{username:"mirkomaralit",ordine:3,fiches:0},{username:"mirkomarawaw",ordine:3,fiches:0},
-			{username:"prova",ordine:2,fiches:250*5}]
+			players:[{username:"aa",ordine:1,fiches:250},{username:"prova",ordine:2,fiches:500},
+			{username:"mirkomaralit",ordine:3,fiches:200},{username:"mirkomarawaw",ordine:3,fiches:10},
+			{username:"prova",ordine:2,fiches:250}
+		],in_gioco:[{username:"aa"},{username:"prova"},{username:"mirkomaralit"}]
 		}
 
 let cards = [{path:"/cards/14-2.png"},{path:"/cards/9-2.png"}]
