@@ -438,7 +438,8 @@ io.of("/").adapter.on("leave-room", async (room, socket_id) => {    //room=tavol
                     if (in_gioco[mano.turno-1].ordine == player.ordine) {  //se era il turno di chi ha abbandonato
                         in_gioco = await db.get_players_in_hand(room);      //lista dei giocatori ancora in gioco [{socket,ordine,fiches},]
                         io.to(room).emit("hand",await get_hand_info(room));     //hand
-                        io.to(in_gioco[mano.turno-1].socket).emit("turn",{turno:mano.turno,giro:mano.giro});       //manda turno e giro per conferma
+                        mano.turno = mano.turno == 1 ? in_gioco.length : mano.turno-1;   //se il turno è dell'ultimo, ritorna al primo, altrimenti aumenta di 1
+                        io.to(in_gioco[mano.turno-1].socket).emit("turn",{turno:mano.turno,giro:mano.giro}); ///awdawawdadawdawaww       //manda turno e giro per conferma
                     } else if (in_gioco[mano.turno-1].ordine > player.ordine) {
                         await db.update_hand_turn(room,"turno - 1");     //turno scala
                         io.to(room).emit("hand",await get_hand_info(room));     //hand
@@ -475,7 +476,9 @@ io.on("connection", (socket) => {
         socket.emit("request",await get_requests(username));
         await Promise.all(friends_list.map(async(friend) => {
             if (friend.online) {
-                io.to((await db.get_socket(friend.username))[0].socket).emit("friends",await get_friends(friend.username));
+                try {
+                    io.to((await db.get_socket(friend.username))[0].socket).emit("friends",await get_friends(friend.username));
+                } catch {};
             };
         }));
 

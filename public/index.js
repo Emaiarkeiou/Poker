@@ -89,5 +89,5 @@ window.onpageshow = (event) => {
 	if (event.persisted) {
 		console.log("log")
 	  	window.location.reload();
-	}
+	};
 };
