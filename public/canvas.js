@@ -3,7 +3,6 @@ import { getCookie } from "./cookies.js";
 const draw_lobby = (canvas,step) => {
     const ctx = canvas.getContext("2d");
     let width = canvas.width, height = canvas.height;
-
     ctx.clearRect(0,0,width,height);
     const grad=ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2,height/2); 	//center,center,innerradius,center,center,outerradius
     grad.addColorStop(0, "#0a1711");

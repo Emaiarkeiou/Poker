@@ -19,18 +19,47 @@
         <img src="/cards/logo-text.png" alt="" class="img-fluid py-2" style="height: 6vh;">
       </div>
       <div class="d-flex w-50 justify-content-end align-items-center">
+        <button id="" type="button" class="remove-friend m-0 mx-4 p-0 text-light" data-bs-toggle="modal" data-bs-target="#modalInstructions">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-question-circle" viewBox="0 0 16 16">
+            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+            <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286m1.557 5.763c0 .533.425.927 1.01.927.609 0 1.028-.394 1.028-.927 0-.552-.42-.94-1.029-.94-.584 0-1.009.388-1.009.94"/>
+          </svg>
+        </button>
+
         <b id="navbar_username"></b>
         <button type="button" class="btn btn-danger py-2 mx-4 btn-block" style="z-index:2;" id="logout_b"><b>Logout</b></button>
       </div>
     </nav>
+
+    <div class="modal modal-xl fade" id="modalInstructions" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header py-2">
+            <h1 class="modal-title fs-5" id="exampleModalLabel">Istruzioni Poker (2-8 giocatori)</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            - Per aggiungere un amico, cercare il suo username nella barra di ricerca in basso a destra <br>
+            - Per accettare/rifiutare una richiesta di amicizia, premere il pulsante relativo in alto a destra <br>
+            - Per eliminare amici o richieste/inviti, premere la x di fianco al loro username <br>
+            - Per unirsi ad un tavolo, crearne uno o accettare un invito nella colonna a sinistra <br>
+            - Per invitare un amico a un tavolo, schiacciare il pulsante "invita" di fianco al loro username nella colonna a destra se sono online <br>
+            - Per iniziare la mano, tutti i giocatori devono schiacciare il pulsante "pronto" in basso <br>
+          </div>
+          <div class="modal-footer">
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="text-light d-flex justify-content-start align-items-end min-vh-100">
-      <div id="canvas_container" class="d-flex col-9 justify-content-start">
-        <canvas id="canvas" style="z-index:1;">
+      <div id="canvas_container" class="d-flex col-6 col-sm-9 justify-content-start align-items-center">
+        <canvas id="canvas" style="z-index:1; max-height: 92vh;">
         </canvas>
 
-        <div id="div_invites" class="d-flex col-9 p-4 align-items-center"style="height: 92vh;z-index:2; position:absolute;">
+        <div id="div_invites" class="d-flex col-12 col-sm-9 p-4 align-items-center"style="height: 92vh;z-index:2; position:absolute; top:8vh;">
 
-        <div id="invites-container" class="col-3 p-2 h-100 overflow-hidden">
+        <div id="invites-container" class="col-6 col-sm-3 p-2 h-100 overflow-hidden" style="position: absolute; z-index: 2;">
           <div id="invites_container">
             <h3 class="p-2 pb-0 m-0">Inviti</h3>
             <ul id="invites_ul" class="list-group row m-0 p-2 pt-0">
@@ -39,7 +68,7 @@
           &nbsp;
         </div>
 
-        <div class="row p-0 m-0 col-6 h-100 align-items-end">
+        <div class="row p-0 m-0 col-6 h-100 align-items-end" style="position: absolute; z-index: 102992;left: 50%;transform: translate(-50%, 0);">
 
             <div class="row p-0 m-0 align-items-center justify-content-center">
               <button type="button" class="col-6 btn btn-primary py-4" id="create_table_b"><b>Crea Tavolo</b></button>
@@ -53,13 +82,11 @@
               </div>
               <button id="quit_b" type="button" class="d-none col-2 btn btn-primary py-2 m-0"><b>Esci</b></button>
             </div>
-        </div>
-
-          
+        </div>  
         </div>
 
         <div id="div_bottom" class="d-none d-flex col-12 justify-content-center align-items-center p-0 m-0" style="height: 25vh;z-index:2; position:absolute;bottom:0;">
-          <div id="div_moves" class="row col-6 h-100 p-0 m-0 justify-content-center align-items-end">
+          <div id="div_moves" class="row col-6 col-md-9 col-sm-12 h-100 p-0 m-0 justify-content-center align-items-end">
 
             <div class="d-flex row col-3 px-4 py-2 m-0 h-50">
               
@@ -92,7 +119,7 @@
       </div>
 
 
-      <div id="div_friends" class="row col-3 m-0 p-0" style="height: 92vh;">
+      <div id="div_friends" class="row col-6 col-sm-3 m-0 p-0" style="height: 92vh;">
 
 
         <div class="p-4 pb-0" style="height: 20vh;">

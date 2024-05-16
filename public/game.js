@@ -11,6 +11,7 @@ document.getElementById("navbar_username").innerText = getCookie("username");
 
 let v_players = [];
 let in_game = false;
+let in_table = false;
 let giro_turno = {};
 let inf = {};
 let last_move = {};
@@ -48,7 +49,15 @@ const canvas_cards = document.getElementById("canvas_ur_cards");
 const canvas_fiches = document.getElementById("canvas_ur_fiches");
 
 canvas.style.width ="100%";
-canvas.style.height="100%";
+if(window.innerHeight >= (9*window.innerWidth/16)) {
+	canvas.width  = window.innerWidth;
+	canvas.height = Math.floor(9*canvas.width/16);
+} 
+else {
+	canvas.height = window.innerHeight;
+	canvas.width  = Math.floor(16*canvas.height/9);
+};
+
 canvas_cards.style.width ="100%";
 canvas_cards.style.height="100%";
 canvas_fiches.style.width ="100%";
@@ -84,6 +93,7 @@ create_table_b.onclick = async() => {
 
 quit_b.onclick = async () => {
 	socket.emit("quit_table");
+	in_table = false;
 	draw_lobby(canvas,step);
 	create_table_b.classList.remove("d-none");
 	invites_container.classList.remove("d-none");
@@ -157,6 +167,7 @@ socket.on("players", async(players) => {
 	console.log("players",players)
 	v_players = players;
 	if (!in_game){
+		in_table = true;
 		create_table_b.classList.add("d-none");
 		invites_container.classList.add("d-none");
 		ready_b.classList.remove("d-none");
@@ -326,6 +337,29 @@ window.onpageshow = (event) => {
 	  	window.location.reload();
 	};
 };
+
+window.addEventListener("resize", () => {
+	//resize canvas
+	if(window.innerHeight >= (9*window.innerWidth/16)) {
+		canvas.width  = window.innerWidth;
+		canvas.height = Math.floor(9*canvas.width/16);
+	}
+	else {
+		canvas.height = window.innerHeight;
+		canvas.width  = Math.floor(16*canvas.height/9);
+	};
+	
+	if (!in_game){
+		draw_lobby(canvas,step);
+		if (in_table) {
+			draw_table(canvas,step,1,1);
+			draw_players(canvas,step,v_players,0,0);
+		};
+	} else {
+		draw_hand(canvas,canvas_fiches,step,inf,last_move,vincitori,all_cards);
+	};
+
+});
 
 /*
 //{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
