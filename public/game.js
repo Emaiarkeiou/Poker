@@ -176,6 +176,8 @@ socket.on("start hand", async(info) => {
 	all_cards = {};
 	giro_turno = {};
 	last_move = {};
+	bet_in.value = null;
+	bet_in.min = 0;
 	ready_check.checked = false;
 	ready_b.classList.add("d-none");
 	quit_b.classList.add("d-none");
