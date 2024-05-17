@@ -120,6 +120,7 @@ const transition = async (canvas,canvas_fiches,canvas_cards,step,info) => {
 	        document.getElementById("div_invites").classList.add("dis-none");
             document.getElementById("div_bottom").classList.remove("d-none");
             setTimeout(() => {
+                document.body.classList.add("game_board");
                 canvas.width  = canvas.offsetWidth;
                 canvas.height = canvas.offsetHeight;
                 canvas_fiches.width  = canvas_fiches.offsetWidth;
@@ -240,7 +241,7 @@ const draw_hand = async (canvas,canvas_fiches,step,info,last_move,vincitori,all_
         i++;
     });
 
-    images.forEach((image) => { //l'ordine di visualizzazione è casuale???
+    images.forEach((image) => { //l'ordine di visualizzazione è casuale
         image.onload = () => {
             ctx.drawImage(image,c.x-((7/2)*cardwidth+6*step)+images.indexOf(image)*(2*step+cardwidth),c.y-cardheight/2,cardwidth,cardheight);
         };
@@ -260,19 +261,7 @@ const draw_hand = async (canvas,canvas_fiches,step,info,last_move,vincitori,all_
 
     let colore = "";
     //se il giocatore è in gioco o ha fatto all in
-    let condizione_pre = false;
-    if (info.in_gioco.length >= info.turno) {
-        condizione_pre = info.in_gioco[info.turno-1].ordine == player.ordine;
-    };
-    const condizione = (!usernames_in_gioco.includes(player.username) && !player.fiches) || condizione_pre;
-    if (condizione) {
-        ctx.shadowColor = "#7df9ff";
-        ctx.shadowBlur = 20;
-        ctx.fillStyle = "#7df9ff";
-        ctx.beginPath();
-        ctx.roundRect(c.x-width/4-step/2,c.y+height/4-step/2, width/2+step, height/4+step*2,step);
-        ctx.fill();
-    } else if (!usernames_in_gioco.includes(player.username)) {
+    if (!usernames_in_gioco.includes(player.username)) {
         colore = "#657774";
     };
 
@@ -333,7 +322,6 @@ const draw_hand = async (canvas,canvas_fiches,step,info,last_move,vincitori,all_
     // i = 0 quando player username = player ordine username
 
     let ordine = player.ordine;
-    let lista_ordini = info.players.map((a) => a.ordine);
     
     info.players = info.players.sort((a, b) => a.ordine - b.ordine);
     let start = info.players.splice(0,ordine-1);
@@ -542,7 +530,7 @@ const draw_your_cards = (canvas,step,cards) => {
         images[i].src = carta.path;
         i++;
     });
-    images.forEach((image) => { //l'ordine di visualizzazione è casuale???
+    images.forEach((image) => { //l'ordine di visualizzazione è casuale
         image.onload = () => {
             ctx.drawImage(image,c.x-(cardwidth+step)+images.indexOf(image)*(2*step+cardwidth),c.y-cardheight/2,cardwidth,cardheight);
         };

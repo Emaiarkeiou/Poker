@@ -180,7 +180,7 @@ socket.on("players", async(players) => {
 
 
 socket.on("start hand", async(info) => {	
-	console.log("start hand")
+	console.log("start hand");
 	in_game = true;
 	inf = info;
 	vincitori = [];
@@ -207,6 +207,7 @@ socket.on("hand", async(info) => {
 		bet_in.min = 0;
 	};
 	inf = info;
+	div_moves.classList.remove("your_turn");
 	bet_in.readOnly = false;
 
 	check_b.disabled = true;
@@ -226,11 +227,11 @@ socket.on("turn", async(turn) => { //{giro:1,turno:2}
 	} else if (turn.giro==1 && inf.puntate_giro.length==1) {
 		bet_in.value = inf.small_blind*2;	//big blind
 		bet_in.readOnly = true;
-	} else {	//se non è small o big blind ABILITARE PIU DI UN RILANCIO, MOSTRARE DI CHI E IL TURNO
+	} else {
 		let somme = inf.puntate_giro.map((puntata) => {return puntata.somma});
 		let min = Math.max(0,...somme);
 		let puntata = inf.puntate_giro.find((puntata) => puntata.username == getCookie("username"));
-		if (puntata) {	//se ha già puntato non può rilanciare
+		if (puntata) {
 			min = min>puntata.somma? min-puntata.somma:min;
 			bet_in.readOnly = true;
 		};
@@ -239,6 +240,7 @@ socket.on("turn", async(turn) => { //{giro:1,turno:2}
 		check_b.disabled = min? true:false;
 		fold_b.disabled = false;
 	};
+	div_moves.classList.add("your_turn");
 	bet_b.disabled = false;
 });
 
@@ -295,6 +297,7 @@ socket.on("end hand", async(winners) => { //[ordine,ordine...]
 	//draw vincitori e tasto per tornare al tavolo
 	vincitori = winners;
 	setTimeout(() => {
+		document.body.classList.remove("game_board");
 		console.log("end hand")
 		socket.emit("unready");
 		in_game = false;
@@ -360,33 +363,3 @@ window.addEventListener("resize", () => {
 	};
 
 });
-
-/*
-//{n_mano:,small_blind:,dealer:,giro:,turno:,puntate_giro:,somma_tot:,carte:[{id,valore,seme,path}],players:[{username,pronto,ordine,fiches,eliminato}]}
-create_table_b.classList.add("d-none");
-invites_container.classList.add("d-none");
-canvas_container.classList.add("full-screen")
-navbar.classList.add("dis-none");
-div_friends.classList.add("dis-none");
-div_invites.classList.add("dis-none");
-div_bottom.classList.remove("d-none");
-
-let infor = {carte:[{path:"/cards/7-2.png"},{path:"/cards/7-2.png"},{path:"/cards/7-2.png"}], players:[],
-			dealer:1, giro:1, n_mano:1, puntate_giro:[], small_blind:1, somma_tot:null, turno:2,
-			players:[{username:"aa",ordine:1,fiches:250},{username:"prova",ordine:2,fiches:500},
-			{username:"mirkomaralit",ordine:3,fiches:200},{username:"mirkomarawaw",ordine:3,fiches:10},
-			{username:"prova",ordine:2,fiches:250}
-		],in_gioco:[{username:"aa"},{username:"prova"},{username:"mirkomaralit"}]
-		}
-
-let cards = [{path:"/cards/14-2.png"},{path:"/cards/9-2.png"}]
-setTimeout(() => {
-	canvas.width  = canvas.offsetWidth;
-	canvas.height = canvas.offsetHeight;
-	canvas_fiches.width  = canvas_fiches.offsetWidth;
-	draw_hand(canvas,canvas_fiches,step,infor);
-	canvas_cards.width  = canvas_cards.offsetWidth;
-	canvas_cards.height = canvas_cards.offsetHeight;
-	draw_your_cards(canvas_cards,step,cards);
-}, 500);
-*/

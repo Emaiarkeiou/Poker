@@ -8,7 +8,6 @@ const { Server } = require("socket.io");
 
 const db = require("./database.js");
 const carte = require("./carte.js");
-const { platform } = require("os");
 const init = async () => {
     await db.createTables(); //crea le tabelle se non esistono
     await carte.generate_cards();
@@ -456,11 +455,7 @@ io.of("/").adapter.on("leave-room", async (room, socket_id) => {    //room=tavol
 });
 
 io.on("connection", (socket) => {
-    /* STRUTTURA */
-    /* 1: get dei dati (usernames e sockets) */
-    /* 2: operazioni nel database/rooms */
-    /* 3: risposta ai sockets */
-
+    
     socket.on("login", async (m) => {
         const username = m.username;
         if ((await db.get_socket(username)).length) {

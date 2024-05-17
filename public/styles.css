@@ -3,6 +3,10 @@ body {
     background-attachment: fixed;
 }
 
+.game_board {
+    background-image: linear-gradient(to bottom right,#28625b,#2a6c65,#28625b,#2a6c65,#28625b,#2a6c65 ) !important;
+} 
+
 .tavolo {
     background: linear-gradient(#2a6c65, #28625b) padding-box,
               linear-gradient( #7d425e, #723e57) border-box;
@@ -220,11 +224,15 @@ input::placeholder {
 
 
 #div_moves {
-    background: linear-gradient(to bottom right,rgba(40,98,91,1), rgba(18,53,36,0.7));
+    background: linear-gradient(to bottom right,rgba(18,53,36,0.7),rgba(40,98,91,1), rgba(18,53,36,0.7),rgba(40,98,91,1));
     border-bottom: 0;
     border-radius: 10px 10px 0 0;
 }
 
+.your_turn {
+    background: linear-gradient(to bottom right,rgba(71,135,120,0.7),rgba(127,255,212,0.5), rgba(71,135,120,0.7),rgba(127,255,212,0.5)) !important;
+    box-shadow: inset 0px 0px 2vw #7df9ff;
+}
 
 #bet_in {
     background: rgba(125,249,255,0.1);
