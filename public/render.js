@@ -3,8 +3,8 @@ import { getCookie } from "./cookies.js";
 
 const sent_request_templ = `
 <li class="friend-li d-flex col-12 row m-0 mt-2 p-0">
-    <div class="d-flex justify-content-left align-items-center col-8 p-2 ps-3 m-0 overflow-hidden">
-        <b>%USERNAME</b>
+    <div class="d-flex justify-content-left align-items-center col-8 p-2 ps-3 m-0">
+        <b class="overflow-hidden">%USERNAME</b>
     </div>
     <div class="d-flex justify-content-center align-items-center col-2 py-2 m-0">
         <button type="button" class="friend-b m-0 p-0 px-2 btn text-light" disabled>
@@ -23,8 +23,8 @@ const sent_request_templ = `
 
 const got_request_templ = `
 <li class="friend-li d-flex col-12 row m-0 mt-2 p-0">
-        <div class="d-flex justify-content-left align-items-center col-8 p-2 ps-3 m-0 overflow-hidden">
-            <b>%USERNAME</b>
+        <div class="d-flex justify-content-left align-items-center col-8 p-2 ps-3 m-0">
+            <b class="overflow-hidden">%USERNAME</b>
         </div>
         <div class="d-flex justify-content-center align-items-center col-2 py-2 m-0">
         <button id="accept_%USERNAME" type="button" class="friend-b m-0 p-0 px-2 btn text-light">
@@ -43,8 +43,8 @@ const got_request_templ = `
 
 const online_friend_templ = `
 <li class="onlinefriend-li d-flex col-12 row m-0 mt-2 p-0">
-    <div class="d-flex justify-content-left align-items-center col-8 p-3 m-0 overflow-hidden">
-        <b>%USERNAME</b>
+    <div class="d-flex justify-content-left align-items-center col-8 p-3 m-0">
+        <b class="overflow-hidden">%USERNAME</b>
     </div>
     <div class="d-flex justify-content-center align-items-center col-2 py-3 m-0">
         <button id="invite_%USERNAME" type="button" class="friend-b m-0 p-0 px-2 btn text-light">
@@ -63,10 +63,9 @@ const online_friend_templ = `
 
 const offline_friend_templ = `
 <li class="friend-li d-flex col-12 row m-0 mt-2 p-0">
-    <div class="d-flex justify-content-left align-items-center col-8 p-3 m-0 overflow-hidden">
-        <b>%USERNAME</b>
+    <div class="d-flex justify-content-left align-items-center col-10 p-3 m-0">
+        <b class="overflow-hidden">%USERNAME</b>
     </div>
-    <div class="d-flex justify-content-center align-items-center col-2 py-3 m-0"></div>
     <div class="d-flex justify-content-center col-2 py-3 m-0">
         <button id="remove_%USERNAME" type="button" class="remove-friend m-0 p-0 text-light">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
@@ -79,8 +78,8 @@ const offline_friend_templ = `
 
 const invite_templ = `
 <li class="invite-li d-flex col-12 row m-0 mt-2 p-0 py-2">
-    <div class="d-flex justify-content-left align-items-center col-7 p-2 ps-3 m-0 overflow-hidden">
-        <b>%USERNAME</b>
+    <div class="d-flex justify-content-left align-items-center col-7 p-2 ps-3 m-0">
+        <b class="overflow-hidden">%USERNAME</b>
     </div>
     <div class="d-flex justify-content-center align-items-center col-3 py-2 m-0">
         <button id="accept_invite_%USERNAME" type="button" class="join-b m-0 p-0 px-2 btn text-light">
