@@ -10,6 +10,7 @@ if (!(await checkLogin())) {
 document.getElementById("navbar_username").innerText = getCookie("username");
 
 let v_players = [];
+let v_friends = [];
 let in_game = false;
 let in_table = false;
 let giro_turno = {};
@@ -19,6 +20,7 @@ let vincitori = [];
 let all_cards = {};
 
 const navbar = document.getElementById("navbar");
+const spinner = document.getElementById("spinner");
 const div_friends = document.getElementById("div_friends");
 const div_invites = document.getElementById("div_invites");
 const div_bottom = document.getElementById("div_bottom");
@@ -86,6 +88,7 @@ const ready_b = document.getElementById("ready_b");
 const ready_check = document.getElementById("ready_check");
 
 create_table_b.onclick = async() => {
+	spinner.classList.remove("d-none");
 	await create_table(getCookie("username"),getCookie("password"));
 };
 
@@ -94,6 +97,7 @@ create_table_b.onclick = async() => {
 quit_b.onclick = async () => {
 	socket.emit("quit_table");
 	in_table = false;
+	await bind_friends(socket,v_friends,in_table);
 	draw_lobby(canvas,step);
 	create_table_b.classList.remove("d-none");
 	invites_container.classList.remove("d-none");
@@ -106,6 +110,7 @@ quit_b.onclick = async () => {
 
 ready_b.onclick = async () => {
 	ready_check.checked=!ready_check.checked;
+	spinner.classList.remove("d-none");
 	if (ready_check.checked) {
 		ready_b.classList.add("ready");
 		socket.emit("ready");
@@ -129,6 +134,7 @@ add_friend.onkeydown = (event) => {
 };
 add_friend_b.onclick = async () => {
 	if (add_friend.value) {
+		spinner.classList.remove("d-none");
 		socket.emit("request", { username: add_friend.value });
 		add_friend.value = "";
 	};
@@ -145,18 +151,22 @@ socket.emit("login", { username: username });
 
 socket.on("request", async(requests) => {
 	console.log("requests",requests)
+	spinner.classList.add("d-none");
 	await render_requests(requests_ul,requests);
 	await bind_requests(socket,requests);
 });
 
 socket.on("friends", async(friends) => {
 	console.log("friends",friends)
+	v_friends = friends;
+	spinner.classList.add("d-none");
 	await render_friends(friends_ul,friends);
-	await bind_friends(socket,friends);
+	await bind_friends(socket,friends,in_table);
 });
 
 socket.on("invite", async(invites) => {
 	console.log("invites",invites)
+	spinner.classList.add("d-none");
 	await render_invites(invites_ul,invites);
 	await bind_invites(socket,invites);
 });
@@ -167,7 +177,9 @@ socket.on("players", async(players) => {
 	console.log("players",players)
 	v_players = players;
 	if (!in_game){
+		spinner.classList.add("d-none");
 		in_table = true;
+		await bind_friends(socket,v_friends,in_table);
 		create_table_b.classList.add("d-none");
 		invites_container.classList.add("d-none");
 		ready_b.classList.remove("d-none");
