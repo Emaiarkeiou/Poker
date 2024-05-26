@@ -540,7 +540,7 @@ io.on("connection", (socket) => {
                 || (await db.get_request_or_friend(username2,username1)).length)) {
                     if (await db.check_username(username2)) {
                         await db.create_request(username1,username2);
-                        io.to(socket.id).emit("request",await get_requests(username1));
+
                         if ((await db.get_socket(username2)).length) {
                             const socket2 = (await db.get_socket(username2))[0].socket;
                             io.to(socket2).emit("request",await get_requests(username2));
@@ -548,8 +548,8 @@ io.on("connection", (socket) => {
                     };
                 };
             };
+            io.to(socket.id).emit("request",await get_requests(username1));
         };
-
     });
 
     socket.on("accept_request", async (m) => {
