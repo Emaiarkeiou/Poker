@@ -721,8 +721,8 @@ io.on("connection", (socket) => {
     });
 });
 
-server.listen(80, () => {
-    console.log("server running on port: " + 80);
+server.listen(8080, () => {
+    console.log("server running on port: " + 8080);
 });
 
 
