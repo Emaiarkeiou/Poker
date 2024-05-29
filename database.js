@@ -1,13 +1,13 @@
 const mysql = require("mysql2");
 const conf = require("./conf.js");
-const connection = mysql.createConnection(conf);
 
+const connection = mysql.createConnection(conf);
+console.log(connection)
 const executeQuery = (sql) => {
     return new Promise((resolve, reject) => {
       connection.query(sql, function (err, result) {
         if (err) {
-          console.error(err);
-          reject();
+            console.log(err)
         }
         resolve(result);
       });

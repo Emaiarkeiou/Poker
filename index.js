@@ -8,12 +8,14 @@ const { Server } = require("socket.io");
 
 const db = require("./database.js");
 const carte = require("./carte.js");
+const { log } = require("console");
 const init = async () => {
     await db.createTables(); //crea le tabelle se non esistono
     await carte.generate_cards();
-    console.log("creato")
-}
-init();
+    console.log("creato");
+};
+
+
 
 
 const STARTING_FICHES = 250;
@@ -32,9 +34,15 @@ app.use("/cards", express.static(path.join(__dirname, "assets/cards")));
 const server = http.createServer(app);
 
 app.post("/login", async(req, res) => {
-    if (await db.login(req.body.username,req.body.password)) {
-        res.json({ result: "ok" });
-    } else {
+    try {
+        if (await db.login(req.body.username,req.body.password)) {
+            res.json({ result: "ok" });
+        } else {
+            res.status(401); //401 è il codice unauthorized
+            res.json({ result: "Unauthorized" });
+        };
+    } catch (e){
+        console.log(e)
         res.status(401); //401 è il codice unauthorized
         res.json({ result: "Unauthorized" });
     }
@@ -722,6 +730,7 @@ io.on("connection", (socket) => {
 });
 
 server.listen(8080, () => {
+    init();
     console.log("server running on port: " + 8080);
 });
 
