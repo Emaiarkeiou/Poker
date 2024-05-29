@@ -14,7 +14,7 @@ const init = async () => {
     await carte.generate_cards();
     console.log("creato");
 };
-
+init();
 
 
 
@@ -730,7 +730,6 @@ io.on("connection", (socket) => {
 });
 
 server.listen(8080, () => {
-    init();
     console.log("server running on port: " + 8080);
 });
 
